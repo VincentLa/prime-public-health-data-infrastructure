@@ -6,7 +6,12 @@
       "type": "python",
       "request": "attach",
       "port": 9091,
-      "preLaunchTask": "func: host start"
+      "preLaunchTask": "func: host start",
+      "env": {
+        "VDHSFTPHostname": "@Microsoft.KeyVault(VaultName=prime-ingestion-test-ts;SecretName=VDHSFTPHostname)",
+        "VDHSFTPPort": "@Microsoft.KeyVault(VaultName=prime-ingestion-test-ts;SecretName=VDHSFTPPort)",
+        "VDHSFTPPassword": "@Microsoft.KeyVault(VaultName=prime-ingestion-test-ts;SecretName=VDHSFTPPassword)"
+      }
     }
   ]
 }
