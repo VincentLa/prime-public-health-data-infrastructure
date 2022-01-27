@@ -9,11 +9,6 @@ from .settings import SFTPSettings
 from .storage_client import PHDIStorageClient
 
 
-from paramiko import Transport
-from paramiko.channel import Channel
-from paramiko.sftp_client import SFTPClient
-
-
 class PHDISFTPClient:
     """
     A client of an SFTP
@@ -60,11 +55,6 @@ class PHDISFTPClient:
             port=self._settings.port,
             cnopts=cnopts,
         )
-        # transport = Transport((self._settings.hostname, self._settings.port))
-        # transport.connect(
-        #     username=self._settings.username, password=self._settings.password
-        # )
-        # sftp = SFTPClient.from_transport(transport)
         return sftp
 
     def get_file_as_bytes(self, path: str):
