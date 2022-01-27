@@ -1,23 +1,29 @@
 import logging
+import sys
 from io import BytesIO
 from pathlib import Path
 
 import pysftp
 
 from .settings import SFTPSettings
-from .storage_client import StorageClient
+from .storage_client import PHDIStorageClient
 
 
-class SFTPClient:
+from paramiko import Transport
+from paramiko.channel import Channel
+from paramiko.sftp_client import SFTPClient
+
+
+class PHDISFTPClient:
     """
-    A client of an SFTP server
+    A client of an SFTP
     """
 
     def __init__(self, settings: SFTPSettings):
         self._settings = settings
         self._sftp = self._setup_connection()
 
-    def get_tree(self, path: str):
+    def get_tree(self, path: str = "/") -> dict:
         """
         Get a representation of the file tree from the SFTP server
         """
@@ -35,7 +41,11 @@ class SFTPClient:
             other_names.append(name)
 
         self._sftp.walktree(path, store_files, store_dirs, store_other, recurse=True)
-        return {"files": file_names, "dirs": dir_names, "other": other_names}
+        return {
+            "files": set(file_names),
+            "dirs": set(dir_names),
+            "other": set(other_names),
+        }
 
     def _setup_connection(self) -> pysftp.Connection:
         """
@@ -47,8 +57,14 @@ class SFTPClient:
             self._settings.hostname,
             username=self._settings.username,
             password=self._settings.password,
+            port=self._settings.port,
             cnopts=cnopts,
         )
+        # transport = Transport((self._settings.hostname, self._settings.port))
+        # transport.connect(
+        #     username=self._settings.username, password=self._settings.password
+        # )
+        # sftp = SFTPClient.from_transport(transport)
         return sftp
 
     def get_file_as_bytes(self, path: str):
@@ -65,7 +81,7 @@ class SFTPClient:
         self,
         sftp_file_path: str,
         blob_file_base_path: str,
-        storage_client: StorageClient,
+        storage_client: PHDIStorageClient,
     ):
         """
         Transmit a single file from the SFTP server to the blob storage
@@ -80,7 +96,7 @@ class SFTPClient:
         storage_client.upload_data_to_blob(file_obj, sftp_file_name, blob_file_path)
 
     def transmit_files_recursive_to_blob(
-        self, storage_client: StorageClient, blob_base_path: str
+        self, storage_client: PHDIStorageClient, blob_base_path: str
     ) -> None:
         """
         Transmit all files in the SFTP server to the specified Azure Storage account and blob container with base path `base path`

@@ -7,7 +7,7 @@ from azure.storage.blob import BlobServiceClient
 from .settings import StorageClientSettings
 
 
-class StorageClient:
+class PHDIStorageClient:
     def __init__(self, settings: StorageClientSettings):
         self._settings = settings
         self._blob_service_client = self._setup_blob_client()
