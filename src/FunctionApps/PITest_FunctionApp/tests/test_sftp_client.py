@@ -20,16 +20,6 @@ def sftp_client(sftpserver):
     stfp_client.teardown_connection()
 
 
-# @pytest.yield_fixture(scope="session")
-# def sftp_client(sftpserver):
-#     transport = Transport((sftpserver.host, sftpserver.port))
-#     transport.connect(username="a", password="b")
-#     sftpclient = SFTPClient.from_transport(transport)
-#     yield sftpclient
-#     sftpclient.close()
-#     transport.close()
-
-
 # This makes use of two fixtures:
 # sftpserver, provided by pytest-sftpserver : mimics an SFTP server using a python object, and
 def test_get_tree(sftpserver, sftp_client):
@@ -66,8 +56,6 @@ def test_get_tree(sftpserver, sftp_client):
     with sftpserver.serve_content(mock_dir_structure):
         file_tree = sftp_client.get_tree()
         assert file_tree == expected_tree_output
-        file_bytes = sftp_client.get_file_as_bytes("/VXU/file1.hl7")
-        assert file_bytes.getvalue() == b"testfile1"
 
 
 def test_get_file_as_bytes(sftpserver, sftp_client):
