@@ -1,3 +1,4 @@
+from io import BytesIO
 import os
 
 import pytest
@@ -65,3 +66,19 @@ def test_get_tree(sftpserver, sftp_client):
     with sftpserver.serve_content(mock_dir_structure):
         file_tree = sftp_client.get_tree()
         assert file_tree == expected_tree_output
+        file_bytes = sftp_client.get_file_as_bytes("/VXU/file1.hl7")
+        assert file_bytes.getvalue() == b"testfile1"
+
+
+def test_get_file_as_bytes(sftpserver, sftp_client):
+    expected_file_bytes = b"testfile1"
+    # fmt: off
+    mock_dir_structure = {
+        "VXU": {
+            "file1.hl7": "testfile1",
+        }
+    }
+    # fmt: on
+    with sftpserver.serve_content(mock_dir_structure):
+        file_bytes = sftp_client.get_file_as_bytes("/VXU/file1.hl7")
+        assert file_bytes.getvalue() == expected_file_bytes

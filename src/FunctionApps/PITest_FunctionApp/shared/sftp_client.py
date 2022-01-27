@@ -18,6 +18,21 @@ class PHDISFTPClient:
         self._settings = settings
         self._sftp = self._setup_connection()
 
+    def _setup_connection(self) -> pysftp.Connection:
+        """
+        Initialize the SFTP connection
+        """
+        cnopts = pysftp.CnOpts()
+        cnopts.hostkeys = None
+        sftp = pysftp.Connection(
+            self._settings.hostname,
+            username=self._settings.username,
+            password=self._settings.password,
+            port=self._settings.port,
+            cnopts=cnopts,
+        )
+        return sftp
+
     def get_tree(self, path: str = "/") -> dict:
         """
         Get a representation of the file tree from the SFTP server
@@ -41,21 +56,6 @@ class PHDISFTPClient:
             "dirs": set(dir_names),
             "other": set(other_names),
         }
-
-    def _setup_connection(self) -> pysftp.Connection:
-        """
-        Initialize the SFTP connection
-        """
-        cnopts = pysftp.CnOpts()
-        cnopts.hostkeys = None
-        sftp = pysftp.Connection(
-            self._settings.hostname,
-            username=self._settings.username,
-            password=self._settings.password,
-            port=self._settings.port,
-            cnopts=cnopts,
-        )
-        return sftp
 
     def get_file_as_bytes(self, path: str):
         """
