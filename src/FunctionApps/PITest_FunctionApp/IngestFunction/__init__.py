@@ -127,7 +127,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         logging.info("Creating and copying files to temporary dir...")
         test_dir_path = "/test_dir"
-        sftp.mkdir(test_dir_path)
+
+        if not sftp.exists(test_dir_path):
+            logging.info(f"{test_dir_path} does not exist. Creating...")
+            sftp.mkdir(test_dir_path)
+        else:
+            logging.info(f"{test_dir_path} exists.")
+            
         for file_path in sftp.listdir("/eICR"):
             logging.info(f"Processing file_path {file_path}")
             if fnmatch.fnmatch(file_path, "/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_16098*.xml"):
