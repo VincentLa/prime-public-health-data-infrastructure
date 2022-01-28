@@ -181,10 +181,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         #     result = pool.map(partial(handle_file, sftp), files_to_copy)
         # logging.info(f"Multiprocessing finished. Result: {list(result)}")
 
-        pool = ProcessPoolExecutor(max_workers=4)
-        result = pool.map(partial(handle_file, sftp), files_to_copy)
-        logging.info(f"Multiprocessing finished. Result: {result}")
+        with ProcessPoolExecutor() as executor:
+            result = list(executor.map(partial(handle_file, sftp), files_to_copy))
 
+        logging.info(f"Multiprocessing finished. Result: {result}")
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
         e = sys.exc_info()
