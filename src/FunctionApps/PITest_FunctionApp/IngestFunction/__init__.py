@@ -171,7 +171,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         #     result = pool.map(partial(handle_file, sftp), base_dir_files)
         # logging.info(f"Multiprocessing finished. Result: {list(result)}")
         file_name = base_dir_files[0]
-        handle_file(sftp, f"/eICR/{file_name}")  
+        handle_file(sftp, file_name)  
 
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
