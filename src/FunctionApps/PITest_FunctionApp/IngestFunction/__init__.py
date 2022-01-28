@@ -49,16 +49,18 @@ def create_container_if_not_exists(container_name:str):
         container.create_container()
 
 
-def upload_blob_to_container(local_file_name: str, container_name: str, data: BytesIO):
+def upload_blob_to_container(original_file_path: str, container_name: str, destination_prefix:str, data: BytesIO):
     if not settings.connection_string:
         exit(f"Connection string not set")
     blob_service_client = BlobServiceClient.from_connection_string(
         settings.connection_string
     )
-    blob_client = blob_service_client.get_blob_client(container=container_name, blob=local_file_name)
+
+    destination_path = f"{destination_prefix}/{original_file_path}"
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=destination_path)
     
     logging.info(
-        "\nUploading passed-in blob to Azure Storage as blob:\n\t" + local_file_name
+        "\nUploading passed-in blob to Azure Storage as blob:\n\t" + original_file_path
     )
     blob_client.upload_blob(data)
 
@@ -70,7 +72,7 @@ def test_copy_file(sftp: pysftp.Connection, path:str):
     logging.info(
         f"Uploading {target_file_name} at path {path} Azure Storage"
     )
-    upload_blob_to_container(target_file_name, "test_container", file_object)
+    upload_blob_to_container(target_file_name, "test_container", "prefix", file_object)
     logging.info("Upload succeeded")
 
 def get_file_as_bytes(sftp: pysftp.Connection, path: str):
@@ -89,15 +91,14 @@ def copy_files_recursively(sftp: pysftp.Connection, base_path: str):
     """
 
     container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
-    path_prefix = "/raw_test"
+    destination_prefix = "/220128/"
     
-    logging.info(f"Copying files from SFTP server to Azure Storage account and blob container {container_name} at {path_prefix}")
+    logging.info(f"Copying files from SFTP server to Azure Storage account and blob container {container_name}")
 
     def handle_file(file_path: str):
         logging.info(f"Processing file {file_path}")
-        file_path = f"{path_prefix}/{file_path}"
         file_bytes = get_file_as_bytes(sftp, file_path)
-        upload_blob_to_container(file_path, container_name, file_bytes)
+        upload_blob_to_container(file_path, container_name, destination_prefix, file_bytes)
         
     def handle_directory(dir_path: str):
         logging.info(f"Processing directory {dir_path} (not copying)")
@@ -149,10 +150,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         top_level = sftp.listdir("/")
         logging.info(f"{top_level}")
 
-        target_dir = "/eICR"
-        target_dir_files = sftp.listdir(target_dir)
-        logging.info(f"Test_dir files ({len(target_dir)}): {target_dir_files}")
-        copy_files_recursively(sftp, target_dir) 
+        base_dir = "/eICR"
+        base_dir_files = sftp.listdir(base_dir)
+        logging.info(f"base_dir files ({len(base_dir)}): {base_dir_files}")
+        copy_files_recursively(sftp, base_dir) 
 
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
