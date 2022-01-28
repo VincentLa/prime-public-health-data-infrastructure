@@ -9,9 +9,8 @@ from io import BytesIO
 from pathlib import Path
 import fnmatch
 
-import multiprocessing
+from multiprocessing.pool import ThreadPool
 from functools import partial
-
 
 def print_tree(sftp: pysftp.Connection, path: str):
     file_names = []
@@ -166,10 +165,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         logging.info("Copying files via multiprocessing pool...")
 
-        with multiprocessing.Pool() as pool:
-            pool.map(partial(handle_file, sftp=sftp), base_dir_files)
+        with ThreadPool(processes=int(10)) as pool:
+            result = pool.map(partial(handle_file, sftp), base_dir_files)
         
-        logging.info("Multiprocessing finished.")
+        logging.info(f"Multiprocessing finished. Result: {list(result)}")
 
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
