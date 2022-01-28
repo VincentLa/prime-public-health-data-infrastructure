@@ -83,13 +83,15 @@ def get_file_as_bytes(sftp: pysftp.Connection, path: str):
     file_object.seek(0)
     return file_object
 
-def copy_files_recursively(sftp: pysftp.Connection, path: str):
+def copy_files_recursively(sftp: pysftp.Connection, base_path: str):
     """
     Transmit all files in the SFTP server to the specified Azure Storage account and blob container with base path `base path`
     """
 
     container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
     path_prefix = "/raw_test"
+    
+    logging.info(f"Copying files from SFTP server to Azure Storage account and blob container {container_name} at {path_prefix}")
 
     def handle_file(file_path: str):
         logging.info(f"Processing file {file_path}")
@@ -104,9 +106,31 @@ def copy_files_recursively(sftp: pysftp.Connection, path: str):
         logging.info(f"Processing other {name} (not copying)")
     
     sftp.walktree(
-        path, handle_file, handle_directory, handle_other, recurse=True
+        base_path, handle_file, handle_directory, handle_other, recurse=True
     )
+    logging.info("Complete.")
 
+def create_test_dir(sftp: pysftp.Connection):
+    logging.info("Creating and copying files to temporary dir...")
+    test_dir_path = "/test_dir"
+    if not sftp.exists(test_dir_path):
+        logging.info(f"{test_dir_path} does not exist. Creating...")
+        sftp.mkdir(test_dir_path)
+    else:
+        logging.info(f"{test_dir_path} exists.")
+
+    eICR_files = sftp.listdir("/eICR")
+    for file_name in eICR_files:
+        
+        if fnmatch.fnmatch(file_name, "zip_1_2_840_114350_1_13_198_2_7_8_688883_16098*.xml"):
+            logging.info(f"Found match: {file_name}")
+            file_path = f"/eICR/{file_name}"
+            file_bytes = get_file_as_bytes(sftp, file_path)
+            logging.info(f"Uploading file...")
+            sftp.putfo(file_bytes, f"{test_dir_path}/{file_name}")
+    test_dir_files = sftp.listdir(test_dir_path)
+    logging.info(f"Test_dir files ({len(test_dir_files)}): {test_dir_files}")
+    logging.info("Completed.")
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Python HTTP trigger function processed a request.")
@@ -125,28 +149,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         top_level = sftp.listdir("/")
         logging.info(f"{top_level}")
 
-        logging.info("Creating and copying files to temporary dir...")
         test_dir_path = "/test_dir"
-
-        if not sftp.exists(test_dir_path):
-            logging.info(f"{test_dir_path} does not exist. Creating...")
-            sftp.mkdir(test_dir_path)
-        else:
-            logging.info(f"{test_dir_path} exists.")
-
-        eICR_files = sftp.listdir("/eICR")
-        for file_name in eICR_files:
-            
-            if fnmatch.fnmatch(file_name, "zip_1_2_840_114350_1_13_198_2_7_8_688883_16098*.xml"):
-                logging.info(f"Found match: {file_name}")
-                file_path = f"/eICR/{file_name}"
-                file_bytes = get_file_as_bytes(sftp, file_path)
-                logging.info(f"Uploading file...")
-                sftp.putfo(file_bytes, f"{test_dir_path}/{file_name}")
         test_dir_files = sftp.listdir(test_dir_path)
         logging.info(f"Test_dir files ({len(test_dir_files)}): {test_dir_files}")
-        logging.info("Completed.")
-
+        copy_files_recursively(sftp, test_dir_path) 
+        
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
         e = sys.exc_info()
