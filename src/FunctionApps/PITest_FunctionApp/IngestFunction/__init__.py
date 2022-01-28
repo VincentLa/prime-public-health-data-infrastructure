@@ -34,16 +34,16 @@ def create_container_if_not_exists(container_name:str):
         exit(f"Connection string not set")
 
     # Create the container
-    logging.debug(f"Creating container {container_name}")
+    logging.info(f"Creating container {container_name}")
 
     container = ContainerClient.from_connection_string(settings.connection_string, container_name)
     if container.exists():
-        logging.debug("\nListing existing blobs...")
+        logging.info("\nListing existing blobs...")
 
         # List the blobs in the container
         blob_list = container.list_blobs()
         for blob in blob_list:
-            logging.debug("\t" + blob.name)
+            logging.info("\t" + blob.name)
     else:
         logging.info(f"{container_name} does not exist. Creating...")
         container.create_container()
@@ -67,17 +67,17 @@ def test_copy_file(sftp: pysftp.Connection, path:str):
     file_object = BytesIO()
     sftp.getfo(path, file_object)
     file_object.seek(0)
-    logging.debug(
+    logging.info(
         f"Uploading {target_file_name} at path {path} Azure Storage"
     )
     upload_blob_to_container(target_file_name, "test_container", file_object)
-    logging.debug("Upload succeeded")
+    logging.info("Upload succeeded")
 
 def get_file_as_bytes(sftp: pysftp.Connection, path: str):
     """
     Get a file from the SFTP server in the form of a BytesIO object
     """
-    logging.debug("Getting file info as blob")
+    logging.info("Getting file info as blob")
     file_object = BytesIO()
     sftp.getfo(path, file_object)
     file_object.seek(0)
@@ -92,16 +92,16 @@ def copy_files_recursively(sftp: pysftp.Connection, path: str):
     path_prefix = "/raw_test"
 
     def handle_file(file_path: str):
-        logging.debug(f"Processing file {file_path}")
+        logging.info(f"Processing file {file_path}")
         file_path = f"{path_prefix}/{file_path}"
         file_bytes = get_file_as_bytes(sftp, file_path)
         upload_blob_to_container(file_path, container_name, file_bytes)
         
     def handle_directory(dir_path: str):
-        logging.debug(f"Processing directory {dir_path} (not copying)")
+        logging.info(f"Processing directory {dir_path} (not copying)")
 
     def handle_other(name: str):
-        logging.debug(f"Processing other {name} (not copying)")
+        logging.info(f"Processing other {name} (not copying)")
     
     sftp.walktree(
         path, handle_file, handle_directory, handle_other, recurse=True
@@ -125,17 +125,18 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         top_level = sftp.listdir("/")
         logging.info(f"{top_level}")
 
-        logging.debug("Creating and copying files to temporary dir...")
+        logging.info("Creating and copying files to temporary dir...")
         test_dir_path = "/test_dir"
         sftp.mkdir(test_dir_path)
         for file_path in sftp.listdir("/eICR"):
+            logging.info(f"Processing file_path {file_path}")
             if fnmatch.fnmatch(file_path, "/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_16098*.xml"):
                 logging.info(f"Found match: {file_path}")
                 file_bytes = get_file_as_bytes(sftp, file_path)
                 logging.info(f"Uploading file...")
                 sftp.putfo(file_bytes, f"{test_dir_path}{file_path}")
         test_dir_files = sftp.listdir(test_dir_path)
-        logging.info(f"Test_dir files ({len(test_dir_path)}): {test_dir_files}")
+        logging.info(f"Test_dir files ({len(test_dir_files)}): {test_dir_files}")
         logging.info("Completed.")
 
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
