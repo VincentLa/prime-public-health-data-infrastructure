@@ -89,7 +89,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         top_level = sftp.listdir("/")
         logging.info(f"{top_level}")
 
-        file_attrs = sftp.listdir_attr("/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml")
+        file_attrs = sftp.stat("/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml")
         logging.info(f"Getting a single file. Original attrs: {file_attrs}")
 
         sftp.get("/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml")
