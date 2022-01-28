@@ -7,6 +7,7 @@ from azure.storage.blob import BlobServiceClient
 import uuid
 from io import BytesIO
 from pathlib import Path
+import fnmatch
 
 
 def print_tree(sftp: pysftp.Connection, path: str):
@@ -59,16 +60,16 @@ def upload_blob(local_file_name: str, data: BytesIO):
     blob_client.upload_blob(data)
 
 
-def test_decryption(sftp: pysftp.Connection):
-    target_file_path = "/eICR/TEST_FILE.TXT"
-    target_file_name = Path(target_file_path).name
+def test_copy_file(sftp: pysftp.Connection, path:str):
+    target_file_name = Path(path).name
     file_object = BytesIO()
-    sftp.getfo(target_file_path, file_object)
+    sftp.getfo(path, file_object)
     file_object.seek(0)
     logging.debug(
-        f"Uploading {target_file_name} at path {target_file_path} Azure Storage"
+        f"Uploading {target_file_name} at path {path} Azure Storage"
     )
     upload_blob(target_file_name, file_object)
+    logging.debug("Upload succeeded")
 
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
@@ -85,9 +86,36 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             cnopts=cnopts,
         )
         logging.info("Top level directory listing:")
-        # for file_path in sftp.listdir("/ELR"):
-        #     logging.info(f"filename: {file_path}")
-        print_tree(sftp, "/")
+        top_level = sftp.listdir("/")
+        logging.info(f"{top_level}")
+
+        logging.info("Removing Dir_test")
+        sftp.rmdir("/Dir_test")
+
+        logging.info("getting a single file")
+        sftp.get("/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml")
+        logging.info("success")
+
+        # sftp.copy("/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml", "/Dir_test/zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml")
+
+        # eICR = sftp.listdir("/eICR")
+        # eLR = sftp.listdir("/ELR")
+        # vxu = sftp.listdir("/VXU")
+        # logging.info(f"\n\neICR: {len(eICR)}\n\nELR: {len(eLR)}\n\nvxu: {len(vxu)}")
+        
+        # logging.debug("Creating and copying files to temporary dir...")
+        # sftp.mkdir("/Dir_test")
+        # for file_path in sftp.listdir("/eICR"):
+        #     if fnmatch.fnmatch(file_path, "/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_16098*.xml"):
+        #             sftp.copy(file_path, "/Dir_test")
+
+        # sample_file_path = "/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml"
+
+        # test_copy_file(sftp, sample_file_path)
+        
+
+
+        # print_tree(sftp, "/")
 
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
