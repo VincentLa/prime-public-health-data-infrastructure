@@ -9,6 +9,9 @@ from io import BytesIO
 from pathlib import Path
 import fnmatch
 
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
+
 
 def print_tree(sftp: pysftp.Connection, path: str):
     file_names = []
@@ -133,6 +136,13 @@ def create_test_dir(sftp: pysftp.Connection):
     logging.info(f"Test_dir files ({len(test_dir_files)}): {test_dir_files}")
     logging.info("Completed.")
 
+def handle_file(sftp: pysftp.Connection, file_path: str):
+    logging.info(f"Processing file {file_path}")
+    container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
+    destination_prefix = "220128"
+    file_bytes = get_file_as_bytes(sftp, file_path)
+    upload_blob_to_container(file_path, container_name, destination_prefix, file_bytes)
+
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Python HTTP trigger function processed a request.")
     logging.info(f"Settings: {settings}")
@@ -152,8 +162,12 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         base_dir = "/eICR"
         base_dir_files = sftp.listdir(base_dir)
-        logging.info(f"base_dir files ({len(base_dir)}): {base_dir_files}")
-        copy_files_recursively(sftp, base_dir) 
+        logging.info(f"base_dir files ({len(base_dir_files)}): {base_dir_files}")
+
+        logging.info("Copying files via multiprocessing pool...")
+        pool = ProcessPoolExecutor()
+        pool.map(partial(handle_file, sftp), base_dir_files)
+        logging.info("Multiprocessing finished.")
 
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
