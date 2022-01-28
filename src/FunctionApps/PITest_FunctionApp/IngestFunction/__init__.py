@@ -9,7 +9,7 @@ from io import BytesIO
 from pathlib import Path
 import fnmatch
 
-from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 from functools import partial
 
 
@@ -165,8 +165,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         logging.info(f"base_dir files ({len(base_dir_files)}): {base_dir_files}")
 
         logging.info("Copying files via multiprocessing pool...")
-        pool = ProcessPoolExecutor()
-        pool.map(partial(handle_file, sftp), base_dir_files)
+
+        with multiprocessing.Pool() as pool:
+            pool.map(partial(handle_file, sftp=sftp), base_dir_files)
+        
         logging.info("Multiprocessing finished.")
 
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
