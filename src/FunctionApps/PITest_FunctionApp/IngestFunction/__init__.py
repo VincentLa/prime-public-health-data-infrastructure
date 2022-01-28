@@ -142,7 +142,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 file_path = f"/eICR/{file_name}"
                 file_bytes = get_file_as_bytes(sftp, file_path)
                 logging.info(f"Uploading file...")
-                sftp.putfo(file_bytes, f"{test_dir_path}{file_path}")
+                sftp.putfo(file_bytes, f"{test_dir_path}/{file_name}")
         test_dir_files = sftp.listdir(test_dir_path)
         logging.info(f"Test_dir files ({len(test_dir_files)}): {test_dir_files}")
         logging.info("Completed.")
