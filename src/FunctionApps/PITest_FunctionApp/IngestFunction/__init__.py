@@ -135,12 +135,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             logging.info(f"{test_dir_path} exists.")
 
         eICR_files = sftp.listdir("/eICR")
-        for file_path in eICR_files:
+        for file_name in eICR_files:
+            file_path = f"/eICR/{file_name}"
             if fnmatch.fnmatch(file_path, "zip_1_2_840_114350_1_13_198_2_7_8_688883_16098*.xml"):
                 logging.info(f"Found match: {file_path}")
                 file_bytes = get_file_as_bytes(sftp, file_path)
                 logging.info(f"Uploading file...")
-                sftp.putfo(file_bytes, f"{test_dir_path}/{file_path}")
+                sftp.putfo(file_bytes, f"{test_dir_path}{file_path}")
         test_dir_files = sftp.listdir(test_dir_path)
         logging.info(f"Test_dir files ({len(test_dir_files)}): {test_dir_files}")
         logging.info("Completed.")
