@@ -139,8 +139,11 @@ def handle_file(sftp: pysftp.Connection, file_path: str):
     logging.info(f"Processing file {file_path}")
     container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
     destination_prefix = "220128"
+    file_path = f"/eICR/{file_path}"
     file_bytes = get_file_as_bytes(sftp, file_path)
+    logging.info(f"Uploading file {file_path}...")
     upload_blob_to_container(file_path, container_name, destination_prefix, file_bytes)
+    logging.info(f"Upload complete for file {file_path}.")
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Python HTTP trigger function processed a request.")
@@ -161,7 +164,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         base_dir = "/eICR"
         base_dir_files = sftp.listdir(base_dir)
-        logging.info(f"base_dir files ({len(base_dir_files)}): {base_dir_files}")
+        logging.info(f"File count= {len(base_dir_files)}")
 
         logging.info("Copying files via multiprocessing pool...")
 
