@@ -166,12 +166,18 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         base_dir_files = sftp.listdir(base_dir)
         logging.info(f"File count= {len(base_dir_files)}")
 
-        # logging.info("Copying files via multiprocessing pool...")
-        # with ThreadPool(processes=int(10)) as pool:
-        #     result = pool.map(partial(handle_file, sftp), base_dir_files)
-        # logging.info(f"Multiprocessing finished. Result: {list(result)}")
-        file_name = base_dir_files[0]
-        handle_file(sftp, file_name)  
+        # Single File
+        # file_name = base_dir_files[0]
+        # handle_file(sftp, file_name) 
+ 
+        files_to_copy = base_dir_files[:10]
+        logging.info(f"Files to copy: {files_to_copy}")
+        
+        logging.info("Copying files via multiprocessing pool...")
+        with ThreadPool(processes=int(10)) as pool:
+            result = pool.map(partial(handle_file, sftp), files_to_copy)
+        logging.info(f"Multiprocessing finished. Result: {list(result)}")
+        
 
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
