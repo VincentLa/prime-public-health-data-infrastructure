@@ -9,7 +9,7 @@ from io import BytesIO
 from pathlib import Path
 import fnmatch
 
-from multiprocessing.pool import ThreadPool
+from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 
 def print_tree(sftp: pysftp.Connection, path: str):
@@ -158,26 +158,32 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             password=settings.password,
             cnopts=cnopts,
         )
-        logging.info("Top level directory listing:")
-        top_level = sftp.listdir("/")
-        logging.info(f"{top_level}")
+        # logging.info("Top level directory listing:")
+        # top_level = sftp.listdir("/")
+        # logging.info(f"{top_level}")
 
-        base_dir = "/eICR"
-        base_dir_files = sftp.listdir(base_dir)
-        logging.info(f"File count= {len(base_dir_files)}")
+        # base_dir = "/eICR"
+        # base_dir_files = sftp.listdir(base_dir)
+        # logging.info(f"File count= {len(base_dir_files)}")
 
         # Single File
         # file_name = base_dir_files[0]
         # handle_file(sftp, file_name) 
- 
-        files_to_copy = base_dir_files[:10]
+        # files_to_copy = base_dir_files[:10]
+
+        files_to_copy = ['zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160962206_20211223222659.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974837_20211224024414.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974869_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974870_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974871_20211224024411.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974872_20211224024412.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974876_20211224024516.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160975428_20211224025211.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160976351_20211224030310.xml']
+
+        
         logging.info(f"Files to copy: {files_to_copy}")
-        
+
         logging.info("Copying files via multiprocessing pool...")
-        with ThreadPool(processes=int(10)) as pool:
-            result = pool.map(partial(handle_file, sftp), files_to_copy)
-        logging.info(f"Multiprocessing finished. Result: {list(result)}")
-        
+        # with ThreadPool(processes=int(10)) as pool:
+        #     result = pool.map(partial(handle_file, sftp), files_to_copy)
+        # logging.info(f"Multiprocessing finished. Result: {list(result)}")
+
+        pool = ProcessPoolExecutor(max_workers=4)
+        result = pool.map(partial(handle_file, sftp), files_to_copy)
+        logging.info(f"Multiprocessing finished. Result: {result}")
 
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
