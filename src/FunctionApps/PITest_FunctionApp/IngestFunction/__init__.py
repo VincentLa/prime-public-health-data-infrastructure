@@ -149,11 +149,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         top_level = sftp.listdir("/")
         logging.info(f"{top_level}")
 
-        test_dir_path = "/test_dir"
-        test_dir_files = sftp.listdir(test_dir_path)
-        logging.info(f"Test_dir files ({len(test_dir_files)}): {test_dir_files}")
-        copy_files_recursively(sftp, test_dir_path) 
-        
+        target_dir = "/eICR"
+        target_dir_files = sftp.listdir(target_dir)
+        logging.info(f"Test_dir files ({len(target_dir)}): {target_dir_files}")
+        copy_files_recursively(sftp, target_dir) 
+
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
         e = sys.exc_info()
