@@ -3,7 +3,7 @@ import pysftp
 import sys
 import azure.functions as func
 from .settings import settings
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, ContainerClient
 import uuid
 from io import BytesIO
 from pathlib import Path
@@ -29,36 +29,38 @@ def print_tree(sftp: pysftp.Connection, path: str):
         f"File names: {file_names}\nDirectory names: {dir_names}\nOther names: {other_names}"
     )
 
+def create_container_if_not_exists(container_name:str):
+    if not settings.connection_string:
+        exit(f"Connection string not set")
 
-def upload_blob(local_file_name: str, data: BytesIO):
+    # Create the container
+    logging.debug(f"Creating container {container_name}")
+
+    container = ContainerClient.from_connection_string(settings.connection_string, container_name)
+    if container.exists():
+        logging.debug("\nListing existing blobs...")
+
+        # List the blobs in the container
+        blob_list = container.list_blobs()
+        for blob in blob_list:
+            logging.debug("\t" + blob.name)
+    else:
+        logging.info(f"{container_name} does not exist. Creating...")
+        container.create_container()
+
+
+def upload_blob_to_container(local_file_name: str, container_name: str, data: BytesIO):
     if not settings.connection_string:
         exit(f"Connection string not set")
     blob_service_client = BlobServiceClient.from_connection_string(
         settings.connection_string
     )
-    # Create a unique name for the container
-    container_name = str(uuid.uuid4())
-
-    # Create the container
-    logging.debug(f"Creating container {container_name}")
-
-    container_client = blob_service_client.create_container(container_name)
-    logging.debug("\nListing existing blobs...")
-
-    # List the blobs in the container
-    blob_list = container_client.list_blobs()
-    for blob in blob_list:
-        logging.debug("\t" + blob.name)
-
-    blob_client = blob_service_client.get_blob_client(
-        container=container_name, blob=local_file_name
-    )
-
+    blob_client = blob_service_client.get_blob_client(container=container_name, blob=local_file_name)
+    
     logging.info(
         "\nUploading passed-in blob to Azure Storage as blob:\n\t" + local_file_name
     )
     blob_client.upload_blob(data)
-
 
 def test_copy_file(sftp: pysftp.Connection, path:str):
     target_file_name = Path(path).name
@@ -68,8 +70,42 @@ def test_copy_file(sftp: pysftp.Connection, path:str):
     logging.debug(
         f"Uploading {target_file_name} at path {path} Azure Storage"
     )
-    upload_blob(target_file_name, file_object)
+    upload_blob_to_container(target_file_name, "test_container", file_object)
     logging.debug("Upload succeeded")
+
+def get_file_as_bytes(sftp: pysftp.Connection, path: str):
+    """
+    Get a file from the SFTP server in the form of a BytesIO object
+    """
+    logging.debug("Getting file info as blob")
+    file_object = BytesIO()
+    sftp.getfo(path, file_object)
+    file_object.seek(0)
+    return file_object
+
+def copy_files_recursively(sftp: pysftp.Connection, path: str):
+    """
+    Transmit all files in the SFTP server to the specified Azure Storage account and blob container with base path `base path`
+    """
+
+    container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
+    path_prefix = "/raw_test"
+
+    def handle_file(file_path: str):
+        logging.debug(f"Processing file {file_path}")
+        file_path = f"{path_prefix}/{file_path}"
+        file_bytes = get_file_as_bytes(sftp, file_path)
+        upload_blob_to_container(file_path, container_name, file_bytes)
+        
+    def handle_directory(dir_path: str):
+        logging.debug(f"Processing directory {dir_path} (not copying)")
+
+    def handle_other(name: str):
+        logging.debug(f"Processing other {name} (not copying)")
+    
+    sftp.walktree(
+        path, handle_file, handle_directory, handle_other, recurse=True
+    )
 
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
@@ -89,32 +125,18 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         top_level = sftp.listdir("/")
         logging.info(f"{top_level}")
 
-        file_attrs = sftp.stat("/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml")
-        logging.info(f"Getting a single file. Original attrs: {file_attrs}")
-
-        sftp.get("/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml")
-        logging.info("success")
-
-        # sftp.copy("/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml", "/Dir_test/zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml")
-
-        # eICR = sftp.listdir("/eICR")
-        # eLR = sftp.listdir("/ELR")
-        # vxu = sftp.listdir("/VXU")
-        # logging.info(f"\n\neICR: {len(eICR)}\n\nELR: {len(eLR)}\n\nvxu: {len(vxu)}")
-        
-        # logging.debug("Creating and copying files to temporary dir...")
-        # sftp.mkdir("/Dir_test")
-        # for file_path in sftp.listdir("/eICR"):
-        #     if fnmatch.fnmatch(file_path, "/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_16098*.xml"):
-        #             sftp.copy(file_path, "/Dir_test")
-
-        # sample_file_path = "/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml"
-
-        # test_copy_file(sftp, sample_file_path)
-        
-
-
-        # print_tree(sftp, "/")
+        logging.debug("Creating and copying files to temporary dir...")
+        test_dir_path = "/test_dir"
+        sftp.mkdir(test_dir_path)
+        for file_path in sftp.listdir("/eICR"):
+            if fnmatch.fnmatch(file_path, "/eICR/zip_1_2_840_114350_1_13_198_2_7_8_688883_16098*.xml"):
+                logging.info(f"Found match: {file_path}")
+                file_bytes = get_file_as_bytes(sftp, file_path)
+                logging.info(f"Uploading file...")
+                sftp.putfo(file_bytes, f"{test_dir_path}{file_path}")
+        test_dir_files = sftp.listdir(test_dir_path)
+        logging.info(f"Test_dir files ({len(test_dir_path)}): {test_dir_files}")
+        logging.info("Completed.")
 
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
