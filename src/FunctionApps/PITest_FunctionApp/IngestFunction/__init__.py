@@ -9,7 +9,7 @@ from io import BytesIO
 from pathlib import Path
 import fnmatch
 
-from multiprocessing.pool import ThreadPool
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
 
 def print_tree(sftp: pysftp.Connection, path: str):
@@ -135,7 +135,7 @@ def create_test_dir(sftp: pysftp.Connection):
     logging.info(f"Test_dir files ({len(test_dir_files)}): {test_dir_files}")
     logging.info("Completed.")
 
-def handle_file(sftp: pysftp.Connection, file_path: str):
+def handle_file(sftp: pysftp.Connection, file_path: str) -> bool:
     logging.info(f"Processing file {file_path}")
     container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
     destination_prefix = "220128"
@@ -144,6 +144,7 @@ def handle_file(sftp: pysftp.Connection, file_path: str):
     logging.info(f"Uploading file {file_path}...")
     upload_blob_to_container(file_path, container_name, destination_prefix, file_bytes)
     logging.info(f"Upload complete for file {file_path}.")
+    return (file_path, True)
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Python HTTP trigger function processed a request.")
@@ -162,15 +163,19 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # top_level = sftp.listdir("/")
         # logging.info(f"{top_level}")
 
-        base_dir = "/eICR"
-        base_dir_files = sftp.listdir(base_dir)
-        logging.info(f"File count= {len(base_dir_files)}")
+        # base_dir = "/eICR"
+        # base_dir_files = sftp.listdir(base_dir)
+        # logging.info(f"File count= {len(base_dir_files)}")
 
         # Single File
         # file_name = base_dir_files[0]
         # handle_file(sftp, file_name) 
-        files_to_copy = base_dir_files[:8500]
+        # files_to_copy = base_dir_files[:10]
+
+        files_to_copy = ['zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160962206_20211223222659.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974837_20211224024414.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974869_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974870_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974871_20211224024411.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974872_20211224024412.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974876_20211224024516.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160975428_20211224025211.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160976351_20211224030310.xml']
+
         
+        logging.info(f"Files to copy: {files_to_copy}")
 
         logging.info("Copying files via multiprocessing pool...")
         # with ThreadPool(processes=int(10)) as pool:
@@ -181,10 +186,22 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         #     future = executor.submit(handle_file, sftp, files_to_copy)
         #     print(future.result())
 
-        with ThreadPool(processes=int(10)) as pool:
-            result = pool.map(partial(handle_file, sftp), files_to_copy)
-        pool.close()
-        pool.join()
+        with ThreadPoolExecutor() as executor:
+            result_futures = list(map(lambda x: executor.submit(partial(handle_file, sftp), x), files_to_copy))
+            for future in as_completed(result_futures):
+                try:
+                    (file_path, success) = future.result()
+                    logging.debug(f"File {file_path} processed. Success: {success}")
+                except Exception as e:
+                    logging.debug('e is', e, type(e))
+
+        # with ThreadPoolExecutor() as executor:
+        #     results = list(executor.map(partial(handle_file, sftp), 1235))
+            
+        # with ThreadPool(processes=int(10)) as pool:
+        #     result = pool.map(partial(handle_file, sftp), files_to_copy)
+        # pool.close()
+        # pool.join()
 
         logging.info(f"Multiprocessing finished. Result: {list(result)}")
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
