@@ -191,8 +191,12 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         #     print(future.result())
 
         with ThreadPoolExecutor() as executor:
-            result_futures = map(lambda x: executor.submit(partial(handle_file, sftp), x), files_to_copy)
-            for future in as_completed(result_futures):
+            #  result_futures = list(map(lambda x: executor.submit(partial(handle_file, sftp), x), files_to_copy))
+
+            futures = []
+            for file_name in files_to_copy:
+                futures.append(executor.submit(handle_file, sftp, file_name))
+            for future in as_completed(futures):
                 try:
                     (file_path, success) = future.result()
                     logger.info(f"File {file_path} processed. Success: {success}")
