@@ -169,9 +169,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # Single File
         # file_name = base_dir_files[0]
         # handle_file(sftp, file_name) 
-        # files_to_copy = base_dir_files[:10]
-
-        
+        files_to_copy = base_dir_files[:8500]
         
 
         logging.info("Copying files via multiprocessing pool...")
@@ -184,7 +182,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         #     print(future.result())
 
         with ThreadPool(processes=int(10)) as pool:
-            result = pool.map(partial(handle_file, sftp), base_dir_files)
+            result = pool.map(partial(handle_file, sftp), files_to_copy)
         pool.close()
         pool.join()
 
