@@ -12,6 +12,9 @@ import fnmatch
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 def print_tree(sftp: pysftp.Connection, path: str):
     file_names = []
     dir_names = []
@@ -175,9 +178,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         files_to_copy = ['zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160962206_20211223222659.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974837_20211224024414.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974869_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974870_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974871_20211224024411.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974872_20211224024412.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974876_20211224024516.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160975428_20211224025211.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160976351_20211224030310.xml']
 
         
-        logging.info(f"Files to copy: {files_to_copy}")
+        logger.info(f"Files to copy: {files_to_copy}")
 
-        logging.info("Copying files via multiprocessing pool...")
+        logger.info("Copying files via multiprocessing pool...")
         # with ThreadPool(processes=int(10)) as pool:
         #     result = pool.map(partial(handle_file, sftp), files_to_copy)
         # logging.info(f"Multiprocessing finished. Result: {list(result)}")
@@ -191,9 +194,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             for future in as_completed(result_futures):
                 try:
                     (file_path, success) = future.result()
-                    print(f"File {file_path} processed. Success: {success}")
+                    logger.info(f"File {file_path} processed. Success: {success}")
                 except Exception as e:
-                    print('e is', e, type(e))
+                    logger.info('e is', e, type(e))
 
         # with ThreadPoolExecutor() as executor:
         #     results = list(executor.map(partial(handle_file, sftp), 1235))
@@ -203,7 +206,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # pool.close()
         # pool.join()
 
-        logging.info(f"Multiprocessing finished.")
+        logger.info(f"Multiprocessing finished.")
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
         e = sys.exc_info()
