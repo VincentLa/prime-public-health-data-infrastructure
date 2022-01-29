@@ -9,7 +9,7 @@ from io import BytesIO
 from pathlib import Path
 import fnmatch
 
-from concurrent.futures import ProcessPoolExecutor
+from multiprocessing import Pool
 from functools import partial
 
 def print_tree(sftp: pysftp.Connection, path: str):
@@ -181,10 +181,16 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         #     result = pool.map(partial(handle_file, sftp), files_to_copy)
         # logging.info(f"Multiprocessing finished. Result: {list(result)}")
 
-        with ProcessPoolExecutor() as executor:
-            result = list(executor.map(partial(handle_file, sftp), files_to_copy))
+        # with ProcessPoolExecutor() as executor:
+        #     future = executor.submit(handle_file, sftp, files_to_copy)
+        #     print(future.result())
 
-        logging.info(f"Multiprocessing finished. Result: {result}")
+        pool = Pool()
+        print(pool.map(partial(handle_file, sftp), files_to_copy))
+        pool.close()
+        pool.join()
+
+        logging.info(f"Multiprocessing finished.")
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
         e = sys.exc_info()
