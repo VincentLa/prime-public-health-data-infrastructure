@@ -203,7 +203,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # pool.close()
         # pool.join()
 
-        logging.info(f"Multiprocessing finished. Result: {list(result)}")
+        logging.info(f"Multiprocessing finished.")
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
         e = sys.exc_info()
