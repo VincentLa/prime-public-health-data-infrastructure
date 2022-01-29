@@ -191,9 +191,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             for future in as_completed(result_futures):
                 try:
                     (file_path, success) = future.result()
-                    logging.debug(f"File {file_path} processed. Success: {success}")
+                    print(f"File {file_path} processed. Success: {success}")
                 except Exception as e:
-                    logging.debug('e is', e, type(e))
+                    print('e is', e, type(e))
 
         # with ThreadPoolExecutor() as executor:
         #     results = list(executor.map(partial(handle_file, sftp), 1235))
