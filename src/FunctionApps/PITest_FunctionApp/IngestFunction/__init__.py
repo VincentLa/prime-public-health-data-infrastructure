@@ -238,7 +238,7 @@ def use_pysftp(settings):
 
 async def get_file_as_bytes_async(sftp:asyncssh.SFTPClient , path:str) -> BytesIO:
     logger.info(f"Getting bytes for file at path {path}")
-    async with sftp.open(path) as f:
+    async with sftp.open(path, 'rb') as f:
         archive_data = BytesIO(await f.read())
         return archive_data
 
