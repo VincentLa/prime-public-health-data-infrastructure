@@ -9,7 +9,7 @@ from io import BytesIO
 from pathlib import Path
 import fnmatch
 import platform
-import aiohttp
+import traceback
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
@@ -306,6 +306,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         result = loop.run_until_complete(use_asyncio(settings))
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
-        e = sys.exc_info()
-        logger.error(f"Exception: {e}, Traceback: {e[2]}")
-        return func.HttpResponse(f"Error in response: {e}", status_code=500)
+        tb = traceback.format_exc()
+        logger.error(f"Exception! Traceback: {tb}")
+        return func.HttpResponse(f"Error in response: {tb}", status_code=500)
