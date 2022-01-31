@@ -244,8 +244,10 @@ async def use_asyncio(settings):
             logger.info('connected to SFTP server')
             # await asyncio.wait(sftp.listdir('/'))
             # await asyncio.wait([sftp.put('files/test%i.txt' % i) for i in range(100)])
+            host_key = await sftp.get_server_host_key(settings.hostname)
+            logger.info(f"Host key: {host_key}")
             files = await sftp.listdir("/eICR")
-            logging.info(f"File Count: {len(files)}")
+            logger.info(f"File Count: {len(files)}")
             # tasks = (download_file(sftp, file, localdir="/") for file in files)
             # await asyncio.gather(*tasks)
 
