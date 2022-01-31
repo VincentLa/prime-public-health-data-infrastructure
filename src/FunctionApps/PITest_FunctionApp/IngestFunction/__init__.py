@@ -8,6 +8,8 @@ import uuid
 from io import BytesIO
 from pathlib import Path
 import fnmatch
+import platform
+
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
@@ -247,10 +249,14 @@ async def use_asyncio(settings):
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logger.info("Python HTTP trigger function processed a request.")
     logger.info(f"Settings: {settings}")
+    logger.info(f"Running Python version {platform.python_version()}")
 
     try:
         #3.7
-        asyncio.run(use_asyncio(settings))
+        try:
+            asyncio.run(use_asyncio(settings))
+        except Exception as e:
+            logging.error(f"Error: {e}")
 
         #3.6
         # loop = asyncio.new_event_loop()
