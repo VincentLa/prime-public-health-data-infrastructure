@@ -236,7 +236,6 @@ def use_pysftp(settings):
     logger.info(f"Multiprocessing finished. Errors: {errors}")
 
 async def use_asyncio(settings):
-    options = 
     async with asyncssh.connect(
                 settings.hostname, 
                 username=settings.username, 
