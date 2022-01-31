@@ -236,12 +236,13 @@ def use_pysftp(settings):
     logger.info(f"Multiprocessing finished. Errors: {errors}")
 
 async def use_asyncio(settings):
+    options = 
     async with asyncssh.connect(
                 settings.hostname, 
                 username=settings.username, 
                 password=settings.password,
                 known_hosts=None,
-                auth_strict_key=False) as conn:
+                client_keys=None) as conn:
         async with conn.start_sftp_client() as sftp:
             logger.info('connected to SFTP server')
             # await asyncio.wait(sftp.listdir('/'))
