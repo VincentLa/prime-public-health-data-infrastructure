@@ -237,7 +237,7 @@ def use_pysftp(settings):
 
 
 async def get_file_as_bytes_async(session, sftp, path:str) -> BytesIO:
-    logger.info(f"downloading {path}")
+    logger.info(f"Getting bytes for file at path {path}")
     async with session.get(path) as resp:
         archive_data = BytesIO(await resp.read())
         return archive_data
@@ -249,9 +249,25 @@ async def handle_file_async(sftp: asyncssh.SFTPClient, session:aiohttp.ClientSes
     file_path = f"/eICR/{file_path}"
     file_bytes = await get_file_as_bytes_async(session, sftp, file_path)
     logger.info(f"Uploading file {file_path}...")
-    upload_blob_to_container(file_path, container_name, destination_prefix, file_bytes)
+    await upload_blob_to_container_async(file_path, container_name, destination_prefix, file_bytes)
     logger.info(f"Upload complete for file {file_path}.")
     return (file_path, True)
+
+async def upload_blob_to_container_async(original_file_path: str, container_name: str, destination_prefix:str, data: BytesIO):
+    if not settings.connection_string:
+        exit(f"Connection string not set")
+
+    blob_service_client = BlobServiceClient.from_connection_string(
+        settings.connection_string
+    )
+    async with blob_service_client:
+        container_client = blob_service_client.get_container_client(container_name)
+        destination_path = f"{destination_prefix}{original_file_path}"
+        blob_client = container_client.get_blob_client(destination_path)
+        logger.info(
+            "\nUploading passed-in blob to Azure Storage as blob:\n\t" + original_file_path
+        )
+        await blob_client.upload_blob(data)
 
 async def use_asyncio(settings):
     async with aiohttp.ClientSession() as session:
@@ -264,9 +280,10 @@ async def use_asyncio(settings):
                     server_host_key_algs="ssh-dss") as conn:
             async with conn.start_sftp_client() as sftp:
                 logger.info('connected to SFTP server')
-                all_files = await sftp.listdir("/eICR")
-                logger.info(f"Total file Count: {len(all_files)}")
-                target_files = all_files[0:200]
+                # all_files = await sftp.listdir("/eICR")
+                # logger.info(f"Total file Count: {len(all_files)}")
+                # target_files = all_files[0:200]
+                target_files = ['zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160962206_20211223222659.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974837_20211224024414.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974869_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974870_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974871_20211224024411.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974872_20211224024412.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974876_20211224024516.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160975428_20211224025211.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160976351_20211224030310.xml']
                 tasks = (handle_file_async(sftp, session, file_path) for file_path in target_files)
                 await asyncio.gather(*tasks)
 
