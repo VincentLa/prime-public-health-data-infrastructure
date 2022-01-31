@@ -284,7 +284,8 @@ async def use_asyncio(settings):
             logger.info('connected to SFTP server')
             all_files = await sftp.glob("/eICR/*")
             
-            already_processed = files('IngestFunction') / 'already_processed.txt'
+            already_processed_path = files('IngestFunction') / 'already_processed.txt'
+            already_processed = already_processed_path.read_text().split(",")
             target_files = set(all_files) - set(already_processed)
             logger.info(f"Total file Count: {len(target_files)}")
 
