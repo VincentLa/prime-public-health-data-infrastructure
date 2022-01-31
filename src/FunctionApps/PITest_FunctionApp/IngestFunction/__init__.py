@@ -191,25 +191,28 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         #     future = executor.submit(handle_file, sftp, files_to_copy)
         #     print(future.result())
 
-        executor = ThreadPoolExecutor() 
+        # executor = ThreadPoolExecutor() 
+        # for file_name in files_to_copy:
+        #     f = executor.submit(handle_file, sftp, file_name)
+        #     f.arg = file_name
+        #     futures.append(f)
         logging.info(f"Starting threads to process {len(files_to_copy)} files...")
         #  result_futures = list(map(lambda x: executor.submit(partial(handle_file, sftp), x), files_to_copy))
 
-        futures = []
-        for file_name in files_to_copy:
-            f = executor.submit(handle_file, sftp, file_name)
-            f.arg = file_name
-            futures.append(f)
+        with ThreadPoolExecutor() as executor:
+            futures = {executor.submit(handle_file, sftp, file_name) : file_name
+                        for file_name in files_to_copy}
 
-        errors = []
-        for future in as_completed(futures):
-            logging.info(f"accessing result for future: {future.arg}")
-            try:
-                (file_path, success) = future.result()
-                logging.info(f"File {file_path} processed. Success: {success}")
-            except Exception as e:
-                logging.info(f"future {f.arg} Encountered exception: {e}, {type(e)}")
-                errors.append(f.arg)
+            errors = []
+            for future in as_completed(futures):
+                file_name = futures[future]
+                logging.info(f"accessing result for file: {file_name}")
+                try:
+                    (file_path, success) = future.result()
+                    logging.info(f"File {file_path} processed. Success: {success}")
+                except Exception as e:
+                    logging.info(f"File {file_name} Encountered exception: {e}, {type(e)}")
+                    errors.append(file_name)
         
 
         # with ThreadPoolExecutor() as executor:
