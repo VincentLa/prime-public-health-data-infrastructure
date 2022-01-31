@@ -198,7 +198,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         futures = []
         for file_name in files_to_copy:
             f = executor.submit(handle_file, sftp, file_name)
-            f.arg(file_name)
+            f.arg = file_name
             futures.append(f)
 
         for future in as_completed(futures):
