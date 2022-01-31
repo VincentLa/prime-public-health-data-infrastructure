@@ -1,6 +1,7 @@
 import os
+from dataclasses import dataclass
 
-
+@dataclass
 class Settings:
     hostname = os.environ.get("VDHSFTPHostname")
     username = os.environ.get("VDHSFTPUsername")

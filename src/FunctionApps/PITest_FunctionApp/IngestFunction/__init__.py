@@ -140,6 +140,7 @@ def create_test_dir(sftp: pysftp.Connection):
     logger.info("Completed.")
 
 def setup_sftp_connection(settings) -> pysftp.Connection:
+    logger.info(f"Setting up new SSH connection with settings {settings}")
     cnopts = pysftp.CnOpts()
     cnopts.hostkeys = None
     sftp = pysftp.Connection(
@@ -151,7 +152,6 @@ def setup_sftp_connection(settings) -> pysftp.Connection:
     return sftp
 
 def handle_file(file_path: str) -> bool:
-    logger.info(f"Setting up new SSH connection")
     sftp = setup_sftp_connection(settings)
     logger.info(f"Processing file {file_path}")
     container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
@@ -173,6 +173,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # top_level = sftp.listdir("/")
         # logger.info(f"{top_level}")
 
+        logger.info("Initial SFTP Setup. Getting eICR Directory listing:")
         # All Files
         base_dir = "/eICR"
         base_dir_files = sftp.listdir(base_dir)
