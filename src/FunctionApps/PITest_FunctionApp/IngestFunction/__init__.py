@@ -3,8 +3,8 @@ import pysftp
 import sys
 import azure.functions as func
 from .settings import settings
-from azure.storage.blob import ContainerClient
-from azure.storage.blob.aio import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, ContainerClient
+# from azure.storage.blob.aio import BlobServiceClient as bsc_aio, ContainerClient as cc_aio
 import uuid
 from io import BytesIO
 from pathlib import Path
