@@ -70,7 +70,7 @@ def upload_blob_to_container(original_file_path: str, container_name: str, desti
     blob_client = blob_service_client.get_blob_client(container=container_name, blob=destination_path)
     
     logger.info(
-        "\nUploading passed-in blob to Azure Storage as blob:\n\t" + original_file_path
+            f"\nUploading passed-in blob to Azure Storage as blob: {original_file_path} to container: {container_name} to destination path {destination_path}"
     )
     blob_client.upload_blob(data)
 
