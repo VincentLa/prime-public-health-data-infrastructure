@@ -7,5 +7,7 @@
 			"path": "src/FunctionApps/PITest_FunctionApp"
 		}
 	],
-    "settings": {}
+	"settings": {
+		"makefile.extensionOutputFolder": "./.vscode"
+	}
 }

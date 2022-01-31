@@ -91,14 +91,22 @@ class PHDISFTPClient:
         """
         Transmit all files in the SFTP server to the specified Azure Storage account and blob container with base path `base path`
         """
-        logging.info(f"Transmitting files from SFTP to Azure Storage")
-        file_tree = self.get_tree("/")
-        for file_path in file_tree["files"]:
-            logging.debug(f"Transmitting file {file_path}")
-            blob_path = f"{blob_base_path}/{file_path}"
+
+        def handle_file(file_path: str):
+            logging.debug(f"Processing file {file_path}")
             self.transmit_single_file_from_sftp_to_blob(
-                file_path, blob_path, storage_client
+                file_path, blob_base_path, storage_client
             )
+
+        def handle_directory(dir_path: str):
+            logging.debug(f"Processing directory {dir_path} (not copying)")
+
+        def handle_other(name: str):
+            logging.debug(f"Processing other {name} (not copying)")
+
+        self._sftp.walktree(
+            "/", handle_file, handle_directory, handle_other, recurse=True
+        )
 
     def teardown_connection(self):
         """
