@@ -240,6 +240,7 @@ async def use_asyncio(settings):
                 password=settings.password) as conn:
         async with conn.start_sftp_client() as sftp:
             logger.info('connected to SFTP server')
+
             # await asyncio.wait([sftp.put('files/test%i.txt' % i) for i in range(100)])
 
 
@@ -248,7 +249,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     logger.info(f"Settings: {settings}")
 
     try:
-        asyncio.run(use_asyncio(settings))
+        #3.7
+        # asyncio.run(use_asyncio(settings))
+        loop = asyncio.get_event_loop()
+        result = loop.run_until_complete(use_asyncio(settings))
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
         e = sys.exc_info()
