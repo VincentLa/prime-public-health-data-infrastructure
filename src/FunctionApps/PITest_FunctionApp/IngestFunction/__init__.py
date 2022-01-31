@@ -265,7 +265,7 @@ async def upload_blob_to_container_async(original_file_path: str, container_name
         destination_path = f"{destination_prefix}{original_file_path}"
         blob_client = container_client.get_blob_client(destination_path)
         logger.info(
-            "\nUploading passed-in blob to Azure Storage as blob:\n\t" + original_file_path
+            f"\nUploading passed-in blob to Azure Storage as blob: {original_file_path} to container: {container_name} to destination path {destination_path}"
         )
         await blob_client.upload_blob(data)
 
@@ -282,7 +282,7 @@ async def use_asyncio(settings):
             logger.info('connected to SFTP server')
             all_files = await sftp.glob("/eICR/*")
             logger.info(f"Total file Count: {len(all_files)}")
-            target_files = all_files
+            target_files = all_files[0:2000]
             # target_files = all_files[0:200]
             # target_files = ['zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160962206_20211223222659.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974837_20211224024414.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974869_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974870_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974871_20211224024411.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974872_20211224024412.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974876_20211224024516.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160975428_20211224025211.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160976351_20211224030310.xml']
             tasks = (handle_file_async(sftp, file_path) for file_path in target_files)
