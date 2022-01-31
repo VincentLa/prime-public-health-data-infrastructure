@@ -236,18 +236,18 @@ def use_pysftp(settings):
     logger.info(f"Multiprocessing finished. Errors: {errors}")
 
 
-async def get_file_as_bytes_async(session, sftp, path:str) -> BytesIO:
+async def get_file_as_bytes_async(sftp:asyncssh.SFTPClient , path:str) -> BytesIO:
     logger.info(f"Getting bytes for file at path {path}")
-    async with session.get(path) as resp:
-        archive_data = BytesIO(await resp.read())
+    async with sftp.open(path, mode='r') as f:
+        archive_data = BytesIO(await f.read())
         return archive_data
 
-async def handle_file_async(sftp: asyncssh.SFTPClient, session:aiohttp.ClientSession, file_path: str) -> bool:
+async def handle_file_async(sftp: asyncssh.SFTPClient, file_path: str) -> bool:
     logger.info(f"Processing file {file_path}")
     container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
     destination_prefix = "220128"
     file_path = f"/eICR/{file_path}"
-    file_bytes = await get_file_as_bytes_async(session, sftp, file_path)
+    file_bytes = await get_file_as_bytes_async(sftp, file_path)
     logger.info(f"Uploading file {file_path}...")
     await upload_blob_to_container_async(file_path, container_name, destination_prefix, file_bytes)
     logger.info(f"Upload complete for file {file_path}.")
@@ -270,22 +270,22 @@ async def upload_blob_to_container_async(original_file_path: str, container_name
         await blob_client.upload_blob(data)
 
 async def use_asyncio(settings):
-    async with aiohttp.ClientSession() as session:
-        async with asyncssh.connect(
-                    settings.hostname, 
-                    username=settings.username, 
-                    password=settings.password,
-                    known_hosts=None,
-                    client_keys=None,
-                    server_host_key_algs="ssh-dss") as conn:
-            async with conn.start_sftp_client() as sftp:
-                logger.info('connected to SFTP server')
-                # all_files = await sftp.listdir("/eICR")
-                # logger.info(f"Total file Count: {len(all_files)}")
-                # target_files = all_files[0:200]
-                target_files = ['zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160962206_20211223222659.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974837_20211224024414.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974869_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974870_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974871_20211224024411.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974872_20211224024412.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974876_20211224024516.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160975428_20211224025211.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160976351_20211224030310.xml']
-                tasks = (handle_file_async(sftp, session, file_path) for file_path in target_files)
-                await asyncio.gather(*tasks)
+    
+    async with asyncssh.connect(
+                settings.hostname, 
+                username=settings.username, 
+                password=settings.password,
+                known_hosts=None,
+                client_keys=None,
+                server_host_key_algs="ssh-dss") as conn:
+        async with conn.start_sftp_client() as sftp:
+            logger.info('connected to SFTP server')
+            # all_files = await sftp.listdir("/eICR")
+            # logger.info(f"Total file Count: {len(all_files)}")
+            # target_files = all_files[0:200]
+            target_files = ['zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160962206_20211223222659.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974837_20211224024414.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974869_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974870_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974871_20211224024411.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974872_20211224024412.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974876_20211224024516.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160975428_20211224025211.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160976351_20211224030310.xml']
+            tasks = (handle_file_async(sftp, file_path) for file_path in target_files)
+            await asyncio.gather(*tasks)
 
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
