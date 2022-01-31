@@ -9,7 +9,7 @@ from io import BytesIO
 from pathlib import Path
 import fnmatch
 import platform
-
+import aiohttp
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
@@ -154,8 +154,7 @@ def setup_sftp_connection(settings) -> pysftp.Connection:
     )
     return sftp
 
-def handle_file(file_path: str) -> bool:
-    sftp = setup_sftp_connection(settings)
+def handle_file(sftp: pysftp.Connection, file_path: str) -> bool:
     logger.info(f"Processing file {file_path}")
     container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
     destination_prefix = "220128"
@@ -165,6 +164,7 @@ def handle_file(file_path: str) -> bool:
     upload_blob_to_container(file_path, container_name, destination_prefix, file_bytes)
     logger.info(f"Upload complete for file {file_path}.")
     return (file_path, True)
+
 
 def use_pysftp(settings):
     sftp = setup_sftp_connection(settings)
@@ -235,22 +235,40 @@ def use_pysftp(settings):
 
     logger.info(f"Multiprocessing finished. Errors: {errors}")
 
+
+async def get_file_as_bytes_async(session, sftp, path:str) -> BytesIO:
+    logger.info(f"downloading {path}")
+    async with session.get(path) as resp:
+        archive_data = BytesIO(await resp.read())
+        return archive_data
+
+async def handle_file_async(sftp: asyncssh.SFTPClient, session:aiohttp.ClientSession, file_path: str) -> bool:
+    logger.info(f"Processing file {file_path}")
+    container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
+    destination_prefix = "220128"
+    file_path = f"/eICR/{file_path}"
+    file_bytes = await get_file_as_bytes_async(session, sftp, file_path)
+    logger.info(f"Uploading file {file_path}...")
+    upload_blob_to_container(file_path, container_name, destination_prefix, file_bytes)
+    logger.info(f"Upload complete for file {file_path}.")
+    return (file_path, True)
+
 async def use_asyncio(settings):
-    async with asyncssh.connect(
-                settings.hostname, 
-                username=settings.username, 
-                password=settings.password,
-                known_hosts=None,
-                client_keys=None,
-                server_host_key_algs="ssh-dss") as conn:
-        async with conn.start_sftp_client() as sftp:
-            logger.info('connected to SFTP server')
-            # await asyncio.wait(sftp.listdir('/'))
-            # await asyncio.wait([sftp.put('files/test%i.txt' % i) for i in range(100)])
-            files = await sftp.listdir("/eICR")
-            logger.info(f"File Count: {len(files)}")
-            # tasks = (download_file(sftp, file, localdir="/") for file in files)
-            # await asyncio.gather(*tasks)
+    async with aiohttp.ClientSession() as session:
+        async with asyncssh.connect(
+                    settings.hostname, 
+                    username=settings.username, 
+                    password=settings.password,
+                    known_hosts=None,
+                    client_keys=None,
+                    server_host_key_algs="ssh-dss") as conn:
+            async with conn.start_sftp_client() as sftp:
+                logger.info('connected to SFTP server')
+                all_files = await sftp.listdir("/eICR")
+                logger.info(f"Total file Count: {len(all_files)}")
+                target_files = all_files[0:200]
+                tasks = (handle_file_async(sftp, session, file_path) for file_path in target_files)
+                await asyncio.gather(*tasks)
 
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
