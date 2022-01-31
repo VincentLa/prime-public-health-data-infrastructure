@@ -240,7 +240,8 @@ async def use_asyncio(settings):
                 settings.hostname, 
                 username=settings.username, 
                 password=settings.password,
-                known_hosts=None) as conn:
+                known_hosts=None,
+                auth_strict_key=False) as conn:
         async with conn.start_sftp_client() as sftp:
             logger.info('connected to SFTP server')
             # await asyncio.wait(sftp.listdir('/'))
