@@ -287,6 +287,8 @@ async def use_asyncio(settings):
             already_processed_path = files('IngestFunction') / 'already_processed.txt'
             already_processed = already_processed_path.read_text().split(",")
             target_files = set(all_files) - set(already_processed)
+
+            logger.info(f"All files length: {len(all_files)},already_processed length: {len(already_processed)}, target_file length: {len(target_files)}. Sample entries. All_files: {all_files[0]}, already_processed: {already_processed[0]}")
             logger.info(f"Total file Count: {len(target_files)}")
 
             # target_files = all_files
