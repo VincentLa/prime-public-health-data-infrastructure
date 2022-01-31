@@ -201,6 +201,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             f.arg = file_name
             futures.append(f)
 
+        errors = []
         for future in as_completed(futures):
             logging.info(f"accessing result for future: {future.arg}")
             try:
@@ -208,6 +209,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 logging.info(f"File {file_path} processed. Success: {success}")
             except Exception as e:
                 logging.info(f"future {f.arg} Encountered exception: {e}, {type(e)}")
+                errors.append(f.arg)
+        
 
         # with ThreadPoolExecutor() as executor:
         #     results = list(executor.map(partial(handle_file, sftp), 1235))
@@ -217,7 +220,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # pool.close()
         # pool.join()
 
-        logging.info(f"Multiprocessing finished.")
+        logging.info(f"Multiprocessing finished. Errors: {errors}")
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
         e = sys.exc_info()
