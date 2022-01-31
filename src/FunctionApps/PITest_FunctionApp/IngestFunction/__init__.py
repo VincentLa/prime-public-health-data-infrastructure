@@ -242,8 +242,12 @@ async def use_asyncio(settings):
                 password=settings.password) as conn:
         async with conn.start_sftp_client() as sftp:
             logger.info('connected to SFTP server')
-
+            # await asyncio.wait(sftp.listdir('/'))
             # await asyncio.wait([sftp.put('files/test%i.txt' % i) for i in range(100)])
+            files = await sftp.listdir("/eICR")
+            logging.info(f"File Count: {len(files)}")
+            # tasks = (download_file(sftp, file, localdir="/") for file in files)
+            # await asyncio.gather(*tasks)
 
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
