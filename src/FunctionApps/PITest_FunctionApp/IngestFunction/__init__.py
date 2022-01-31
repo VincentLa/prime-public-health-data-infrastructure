@@ -11,6 +11,7 @@ import fnmatch
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
+import asyncio, asyncssh
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -163,78 +164,91 @@ def handle_file(file_path: str) -> bool:
     logger.info(f"Upload complete for file {file_path}.")
     return (file_path, True)
 
+def use_pysftp(settings):
+    sftp = setup_sftp_connection(settings)
+    # logger.info("Top level directory listing:")
+    # top_level = sftp.listdir("/")
+    # logger.info(f"{top_level}")
+
+    logger.info("Initial SFTP Setup. Getting eICR Directory listing:")
+    # All Files
+    base_dir = "/eICR"
+    base_dir_files = sftp.listdir(base_dir)
+    logger.info(f"File count= {len(base_dir_files)}")
+    # files_to_copy = base_dir_files
+
+    # Single File
+    # file_name = base_dir_files[0]
+    # handle_file(sftp, file_name) 
+    # files_to_copy = base_dir_files[:10]
+
+    # files_to_copy = ['zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160962206_20211223222659.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974837_20211224024414.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974869_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974870_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974871_20211224024411.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974872_20211224024412.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974876_20211224024516.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160975428_20211224025211.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160976351_20211224030310.xml']
+
+    files_to_copy = base_dir_files[0:2000]
+
+
+    # logger.info(f"Files to copy: {files_to_copy}")
+
+    logger.info("Copying files via multiprocessing pool...")
+    # with ThreadPool(processes=int(10)) as pool:
+    #     result = pool.map(partial(handle_file, sftp), files_to_copy)
+    # logger.info(f"Multiprocessing finished. Result: {list(result)}")
+
+    # with ProcessPoolExecutor() as executor:
+    #     future = executor.submit(handle_file, sftp, files_to_copy)
+    #     print(future.result())
+
+    # executor = ThreadPoolExecutor() 
+    # for file_name in files_to_copy:
+    #     f = executor.submit(handle_file, sftp, file_name)
+    #     f.arg = file_name
+    #     futures.append(f)
+    logger.info(f"Starting threads to process {len(files_to_copy)} files...")
+    #  result_futures = list(map(lambda x: executor.submit(partial(handle_file, sftp), x), files_to_copy))
+
+    with ThreadPoolExecutor() as executor:
+        futures = {executor.submit(handle_file, file_name) : file_name
+                    for file_name in files_to_copy}
+        logger.info("Finished submitting threads.")
+
+        errors = []
+        for future in as_completed(futures):
+            file_name = futures[future]
+            logger.info(f"accessing result for file: {file_name}")
+            try:
+                (file_path, success) = future.result()
+                logger.info(f"File {file_path} processed. Success: {success}")
+            except Exception as e:
+                logger.info(f"File {file_name} Encountered exception: {e}, {type(e)}")
+                errors.append(file_name)
+    
+
+    # with ThreadPoolExecutor() as executor:
+    #     results = list(executor.map(partial(handle_file, sftp), 1235))
+        
+    # with ThreadPool(processes=int(10)) as pool:
+    #     result = pool.map(partial(handle_file, sftp), files_to_copy)
+    # pool.close()
+    # pool.join()
+
+    logger.info(f"Multiprocessing finished. Errors: {errors}")
+
+async def use_asyncio(settings):
+    async with asyncssh.connect(
+                settings.hostname, 
+                username=settings.username, 
+                password=settings.password) as conn:
+        async with conn.start_sftp_client() as sftp:
+            logger.info('connected to SFTP server')
+            # await asyncio.wait([sftp.put('files/test%i.txt' % i) for i in range(100)])
+
+
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logger.info("Python HTTP trigger function processed a request.")
     logger.info(f"Settings: {settings}")
 
     try:
-        sftp = setup_sftp_connection(settings)
-        # logger.info("Top level directory listing:")
-        # top_level = sftp.listdir("/")
-        # logger.info(f"{top_level}")
-
-        logger.info("Initial SFTP Setup. Getting eICR Directory listing:")
-        # All Files
-        base_dir = "/eICR"
-        base_dir_files = sftp.listdir(base_dir)
-        logger.info(f"File count= {len(base_dir_files)}")
-        # files_to_copy = base_dir_files
-
-        # Single File
-        # file_name = base_dir_files[0]
-        # handle_file(sftp, file_name) 
-        # files_to_copy = base_dir_files[:10]
-
-        # files_to_copy = ['zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160962206_20211223222659.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974837_20211224024414.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974869_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974870_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974871_20211224024411.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974872_20211224024412.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974876_20211224024516.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160975428_20211224025211.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160976351_20211224030310.xml']
-
-        files_to_copy = base_dir_files[0:2000]
-
-
-        # logger.info(f"Files to copy: {files_to_copy}")
-
-        logger.info("Copying files via multiprocessing pool...")
-        # with ThreadPool(processes=int(10)) as pool:
-        #     result = pool.map(partial(handle_file, sftp), files_to_copy)
-        # logger.info(f"Multiprocessing finished. Result: {list(result)}")
-
-        # with ProcessPoolExecutor() as executor:
-        #     future = executor.submit(handle_file, sftp, files_to_copy)
-        #     print(future.result())
-
-        # executor = ThreadPoolExecutor() 
-        # for file_name in files_to_copy:
-        #     f = executor.submit(handle_file, sftp, file_name)
-        #     f.arg = file_name
-        #     futures.append(f)
-        logger.info(f"Starting threads to process {len(files_to_copy)} files...")
-        #  result_futures = list(map(lambda x: executor.submit(partial(handle_file, sftp), x), files_to_copy))
-
-        with ThreadPoolExecutor() as executor:
-            futures = {executor.submit(handle_file, file_name) : file_name
-                        for file_name in files_to_copy}
-            logger.info("Finished submitting threads.")
-
-            errors = []
-            for future in as_completed(futures):
-                file_name = futures[future]
-                logger.info(f"accessing result for file: {file_name}")
-                try:
-                    (file_path, success) = future.result()
-                    logger.info(f"File {file_path} processed. Success: {success}")
-                except Exception as e:
-                    logger.info(f"File {file_name} Encountered exception: {e}, {type(e)}")
-                    errors.append(file_name)
-        
-
-        # with ThreadPoolExecutor() as executor:
-        #     results = list(executor.map(partial(handle_file, sftp), 1235))
-            
-        # with ThreadPool(processes=int(10)) as pool:
-        #     result = pool.map(partial(handle_file, sftp), files_to_copy)
-        # pool.close()
-        # pool.join()
-
-        logger.info(f"Multiprocessing finished. Errors: {errors}")
+        asyncio.run(use_asyncio(settings))
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
         e = sys.exc_info()
