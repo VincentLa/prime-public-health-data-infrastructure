@@ -239,13 +239,12 @@ async def use_asyncio(settings):
     async with asyncssh.connect(
                 settings.hostname, 
                 username=settings.username, 
-                password=settings.password) as conn:
+                password=settings.password,
+                known_hosts=None) as conn:
         async with conn.start_sftp_client() as sftp:
             logger.info('connected to SFTP server')
             # await asyncio.wait(sftp.listdir('/'))
             # await asyncio.wait([sftp.put('files/test%i.txt' % i) for i in range(100)])
-            host_key = await sftp.get_server_host_key(settings.hostname)
-            logger.info(f"Host key: {host_key}")
             files = await sftp.listdir("/eICR")
             logger.info(f"File Count: {len(files)}")
             # tasks = (download_file(sftp, file, localdir="/") for file in files)
