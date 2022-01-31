@@ -249,7 +249,8 @@ async def handle_file_async(sftp: asyncssh.SFTPClient, file_path: str) -> bool:
     destination_prefix = "220128"
     file_bytes = await get_file_as_bytes_async(sftp, file_path)
     logger.info(f"Uploading file {file_path}...")
-    await upload_blob_to_container_async(file_path, container_name, destination_prefix, file_bytes)
+    #await upload_blob_to_container_async(file_path, container_name, destination_prefix, file_bytes)
+    upload_blob_to_container(file_path, container_name, destination_prefix, file_bytes)
     logger.info(f"Upload complete for file {file_path}.")
     return (file_path, True)
 
