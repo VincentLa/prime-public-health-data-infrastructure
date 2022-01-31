@@ -247,7 +247,6 @@ async def handle_file_async(sftp: asyncssh.SFTPClient, file_path: str) -> bool:
     logger.info(f"Processing file {file_path}")
     container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
     destination_prefix = "220128"
-    file_path = f"/eICR/{file_path}"
     file_bytes = await get_file_as_bytes_async(sftp, file_path)
     logger.info(f"Uploading file {file_path}...")
     await upload_blob_to_container_async(file_path, container_name, destination_prefix, file_bytes)
