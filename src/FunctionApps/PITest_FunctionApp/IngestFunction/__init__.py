@@ -11,6 +11,7 @@ from pathlib import Path
 import fnmatch
 import platform
 import traceback
+from importlib.resources import files
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
@@ -282,8 +283,12 @@ async def use_asyncio(settings):
         async with conn.start_sftp_client() as sftp:
             logger.info('connected to SFTP server')
             all_files = await sftp.glob("/eICR/*")
-            logger.info(f"Total file Count: {len(all_files)}")
-            target_files = all_files
+            
+            already_processed = files('IngestFunction') / 'already_processed.txt'
+            target_files = set(all_files) - set(already_processed)
+            logger.info(f"Total file Count: {len(target_files)}")
+
+            # target_files = all_files
             # target_files = all_files[0:200]
             # target_files = ['zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160962206_20211223222659.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974837_20211224024414.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974869_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974870_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974871_20211224024411.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974872_20211224024412.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974876_20211224024516.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160975428_20211224025211.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160976351_20211224030310.xml']
             tasks = (handle_file_async(sftp, file_path) for file_path in target_files)
