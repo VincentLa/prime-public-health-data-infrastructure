@@ -248,11 +248,15 @@ async def handle_file_async(sftp: asyncssh.SFTPClient, file_path: str) -> bool:
     container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
     destination_prefix = "220128"
     file_path = f"/eICR/{file_path}"
-    file_bytes = await get_file_as_bytes_async(sftp, file_path)
-    logger.info(f"Uploading file {file_path}...")
-    await upload_blob_to_container_async(file_path, container_name, destination_prefix, file_bytes)
-    logger.info(f"Upload complete for file {file_path}.")
-    return (file_path, True)
+    is_dir = await sftp.isdir(file_path)
+    if is_dir:
+        logging.info(f"File {file_path} is a directory. Skipping.")
+    else:
+        file_bytes = await get_file_as_bytes_async(sftp, file_path)
+        logger.info(f"Uploading file {file_path}...")
+        await upload_blob_to_container_async(file_path, container_name, destination_prefix, file_bytes)
+        logger.info(f"Upload complete for file {file_path}.")
+        return (file_path, True)
 
 async def upload_blob_to_container_async(original_file_path: str, container_name: str, destination_prefix:str, data: BytesIO):
     if not settings.connection_string:
