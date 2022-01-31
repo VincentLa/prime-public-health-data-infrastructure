@@ -253,15 +253,15 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         #3.7
-        try:
-            asyncio.run(use_asyncio(settings))
-        except Exception as e:
-            logging.error(f"Error: {e}")
+        # try:
+        #     asyncio.run(use_asyncio(settings))
+        # except Exception as e:
+        #     logging.error(f"Error: {e}")
 
         #3.6
-        # loop = asyncio.new_event_loop()
-        # asyncio.set_event_loop(loop)
-        # result = loop.run_until_complete(use_asyncio(settings))
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(use_asyncio(settings))
         return func.HttpResponse(f"This HTTP triggered function executed successfully.")
     except:
         e = sys.exc_info()
