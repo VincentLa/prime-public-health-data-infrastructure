@@ -1,23 +1,32 @@
-import logging
-import pysftp
-import sys
-import azure.functions as func
-from .settings import settings
-from azure.storage.blob import BlobServiceClient, ContainerClient
-# from azure.storage.blob.aio import BlobServiceClient as bsc_aio, ContainerClient as cc_aio
-import uuid
-from io import BytesIO
-from pathlib import Path
+import asyncio
 import fnmatch
+import logging
 import platform
+import sys
 import traceback
-from importlib.resources import files
 
+from azure.storage.blob.aio import (
+    BlobServiceClient as BlobServiceClientAIO,
+    ContainerClient as ContainerClientAIO,
+)
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
-import asyncio, asyncssh
+from importlib.resources import files
+from io import BytesIO
+from pathlib import Path
+from typing import Callable, Awaitable, List, Set, Tuple
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+import asyncssh
+import azure.functions as func
+import pysftp
+from azure.storage.blob import BlobServiceClient, ContainerClient
+
+from .settings import IngestSettings
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -40,14 +49,17 @@ def print_tree(sftp: pysftp.Connection, path: str):
         f"File names: {file_names}\nDirectory names: {dir_names}\nOther names: {other_names}"
     )
 
-def create_container_if_not_exists(container_name:str):
+
+def create_container_if_not_exists(container_name: str, settings: IngestSettings):
     if not settings.connection_string:
         exit(f"Connection string not set")
 
     # Create the container
     logger.info(f"Creating container {container_name}")
 
-    container = ContainerClient.from_connection_string(settings.connection_string, container_name)
+    container = ContainerClient.from_connection_string(
+        settings.connection_string, container_name
+    )
     if container.exists():
         logger.info("\nListing existing blobs...")
 
@@ -60,7 +72,13 @@ def create_container_if_not_exists(container_name:str):
         container.create_container()
 
 
-def upload_blob_to_container(original_file_path: str, container_name: str, destination_prefix:str, data: BytesIO):
+def upload_blob_to_container(
+    original_file_path: str,
+    container_name: str,
+    destination_prefix: str,
+    data: BytesIO,
+    settings: IngestSettings,
+):
     if not settings.connection_string:
         exit(f"Connection string not set")
     blob_service_client = BlobServiceClient.from_connection_string(
@@ -68,23 +86,27 @@ def upload_blob_to_container(original_file_path: str, container_name: str, desti
     )
 
     destination_path = f"{destination_prefix}{original_file_path}"
-    blob_client = blob_service_client.get_blob_client(container=container_name, blob=destination_path)
-    
+    blob_client = blob_service_client.get_blob_client(
+        container=container_name, blob=destination_path
+    )
+
     logger.info(
-            f"\nUploading passed-in blob to Azure Storage as blob: {original_file_path} to container: {container_name} to destination path {destination_path}"
+        f"\nUploading passed-in blob to Azure Storage as blob: {original_file_path} to container: {container_name} to destination path {destination_path}"
     )
     blob_client.upload_blob(data)
 
-def test_copy_file(sftp: pysftp.Connection, path:str):
+
+def test_copy_file(sftp: pysftp.Connection, path: str, settings: IngestSettings):
     target_file_name = Path(path).name
     file_object = BytesIO()
     sftp.getfo(path, file_object)
     file_object.seek(0)
-    logger.info(
-        f"Uploading {target_file_name} at path {path} Azure Storage"
+    logger.info(f"Uploading {target_file_name} at path {path} Azure Storage")
+    upload_blob_to_container(
+        target_file_name, "test_container", "prefix", file_object, settings
     )
-    upload_blob_to_container(target_file_name, "test_container", "prefix", file_object)
     logger.info("Upload succeeded")
+
 
 def get_file_as_bytes(sftp: pysftp.Connection, path: str):
     """
@@ -96,31 +118,37 @@ def get_file_as_bytes(sftp: pysftp.Connection, path: str):
     file_object.seek(0)
     return file_object
 
-def copy_files_recursively(sftp: pysftp.Connection, base_path: str):
+
+def copy_files_recursively(
+    sftp: pysftp.Connection, base_path: str, settings: IngestSettings
+):
     """
     Transmit all files in the SFTP server to the specified Azure Storage account and blob container with base path `base path`
     """
 
     container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
     destination_prefix = "/220128/"
-    
-    logger.info(f"Copying files from SFTP server to Azure Storage account and blob container {container_name}")
+
+    logger.info(
+        f"Copying files from SFTP server to Azure Storage account and blob container {container_name}"
+    )
 
     def handle_file(file_path: str):
         logger.info(f"Processing file {file_path}")
         file_bytes = get_file_as_bytes(sftp, file_path)
-        upload_blob_to_container(file_path, container_name, destination_prefix, file_bytes)
-        
+        upload_blob_to_container(
+            file_path, container_name, destination_prefix, file_bytes, settings
+        )
+
     def handle_directory(dir_path: str):
         logger.info(f"Processing directory {dir_path} (not copying)")
 
     def handle_other(name: str):
         logger.info(f"Processing other {name} (not copying)")
-    
-    sftp.walktree(
-        base_path, handle_file, handle_directory, handle_other, recurse=True
-    )
+
+    sftp.walktree(base_path, handle_file, handle_directory, handle_other, recurse=True)
     logger.info("Complete.")
+
 
 def create_test_dir(sftp: pysftp.Connection):
     logger.info("Creating and copying files to temporary dir...")
@@ -133,8 +161,10 @@ def create_test_dir(sftp: pysftp.Connection):
 
     eICR_files = sftp.listdir("/eICR")
     for file_name in eICR_files:
-        
-        if fnmatch.fnmatch(file_name, "zip_1_2_840_114350_1_13_198_2_7_8_688883_16098*.xml"):
+
+        if fnmatch.fnmatch(
+            file_name, "zip_1_2_840_114350_1_13_198_2_7_8_688883_16098*.xml"
+        ):
             logger.info(f"Found match: {file_name}")
             file_path = f"/eICR/{file_name}"
             file_bytes = get_file_as_bytes(sftp, file_path)
@@ -143,6 +173,7 @@ def create_test_dir(sftp: pysftp.Connection):
     test_dir_files = sftp.listdir(test_dir_path)
     logger.info(f"Test_dir files ({len(test_dir_files)}): {test_dir_files}")
     logger.info("Completed.")
+
 
 def setup_sftp_connection(settings) -> pysftp.Connection:
     logger.info(f"Setting up new SSH connection with settings {settings}")
@@ -156,14 +187,19 @@ def setup_sftp_connection(settings) -> pysftp.Connection:
     )
     return sftp
 
-def handle_file(sftp: pysftp.Connection, file_path: str) -> bool:
+
+def handle_file(
+    sftp: pysftp.Connection, file_path: str, settings: IngestSettings
+) -> Tuple[str, bool]:
     logger.info(f"Processing file {file_path}")
     container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
     destination_prefix = "220128"
     file_path = f"/eICR/{file_path}"
     file_bytes = get_file_as_bytes(sftp, file_path)
     logger.info(f"Uploading file {file_path}...")
-    upload_blob_to_container(file_path, container_name, destination_prefix, file_bytes)
+    upload_blob_to_container(
+        file_path, container_name, destination_prefix, file_bytes, settings
+    )
     logger.info(f"Upload complete for file {file_path}.")
     return (file_path, True)
 
@@ -183,13 +219,12 @@ def use_pysftp(settings):
 
     # Single File
     # file_name = base_dir_files[0]
-    # handle_file(sftp, file_name) 
+    # handle_file(sftp, file_name)
     # files_to_copy = base_dir_files[:10]
 
     # files_to_copy = ['zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160962206_20211223222659.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974837_20211224024414.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974869_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974870_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974871_20211224024411.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974872_20211224024412.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974876_20211224024516.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160975428_20211224025211.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160976351_20211224030310.xml']
 
     files_to_copy = base_dir_files[0:2000]
-
 
     # logger.info(f"Files to copy: {files_to_copy}")
 
@@ -202,7 +237,7 @@ def use_pysftp(settings):
     #     future = executor.submit(handle_file, sftp, files_to_copy)
     #     print(future.result())
 
-    # executor = ThreadPoolExecutor() 
+    # executor = ThreadPoolExecutor()
     # for file_name in files_to_copy:
     #     f = executor.submit(handle_file, sftp, file_name)
     #     f.arg = file_name
@@ -211,8 +246,10 @@ def use_pysftp(settings):
     #  result_futures = list(map(lambda x: executor.submit(partial(handle_file, sftp), x), files_to_copy))
 
     with ThreadPoolExecutor() as executor:
-        futures = {executor.submit(handle_file, file_name) : file_name
-                    for file_name in files_to_copy}
+        futures = {
+            executor.submit(handle_file, file_name): file_name
+            for file_name in files_to_copy
+        }
         logger.info("Finished submitting threads.")
 
         errors = []
@@ -225,11 +262,10 @@ def use_pysftp(settings):
             except Exception as e:
                 logger.info(f"File {file_name} Encountered exception: {e}, {type(e)}")
                 errors.append(file_name)
-    
 
     # with ThreadPoolExecutor() as executor:
     #     results = list(executor.map(partial(handle_file, sftp), 1235))
-        
+
     # with ThreadPool(processes=int(10)) as pool:
     #     result = pool.map(partial(handle_file, sftp), files_to_copy)
     # pool.close()
@@ -238,31 +274,45 @@ def use_pysftp(settings):
     logger.info(f"Multiprocessing finished. Errors: {errors}")
 
 
-async def get_file_as_bytes_async(sftp:asyncssh.SFTPClient , path:str) -> BytesIO:
+async def get_file_as_bytes_async(sftp: asyncssh.SFTPClient, path: str) -> BytesIO:
     logger.info(f"Getting bytes for file at path {path}")
-    async with sftp.open(path, 'rb') as f:
-        archive_data = BytesIO(await f.read())
+    async with sftp.open(path, "rb") as f:
+        archive_data = BytesIO(await f.read())  # type: ignore # size and offset are optional
         return archive_data
 
-async def handle_file_async(sftp: asyncssh.SFTPClient, file_path: str) -> bool:
+
+async def handle_file_async(
+    sftp: asyncssh.SFTPClient,
+    file_path: str,
+    destination_prefix: str,
+    settings: IngestSettings,
+) -> Tuple[str, bool]:
     logger.info(f"Processing file {file_path}")
     container_name = "3d6cd2fa-61dc-4657-8938-6bedd4f13d53"
-    destination_prefix = "220128"
     file_bytes = await get_file_as_bytes_async(sftp, file_path)
     logger.info(f"Uploading file {file_path}...")
-    #await upload_blob_to_container_async(file_path, container_name, destination_prefix, file_bytes)
-    upload_blob_to_container(file_path, container_name, destination_prefix, file_bytes)
+    # await upload_blob_to_container_async(file_path, container_name, destination_prefix, file_bytes)
+    upload_blob_to_container(
+        file_path, container_name, destination_prefix, file_bytes, settings
+    )
     logger.info(f"Upload complete for file {file_path}.")
     return (file_path, True)
 
-async def upload_blob_to_container_async(original_file_path: str, container_name: str, destination_prefix:str, data: BytesIO):
+
+async def upload_blob_to_container_async(
+    original_file_path: str,
+    container_name: str,
+    destination_prefix: str,
+    data: BytesIO,
+    settings: IngestSettings,
+):
     if not settings.connection_string:
         exit(f"Connection string not set")
 
-    blob_service_client = BlobServiceClient.from_connection_string(
+    blob_service_client = BlobServiceClientAIO.from_connection_string(
         settings.connection_string
     )
-    async with blob_service_client:
+    async with blob_service_client:  # type: ignore # Bug in Azure SDK
         container_client = blob_service_client.get_container_client(container_name)
         destination_path = f"{destination_prefix}{original_file_path}"
         blob_client = container_client.get_blob_client(destination_path)
@@ -271,54 +321,88 @@ async def upload_blob_to_container_async(original_file_path: str, container_name
         )
         await blob_client.upload_blob(data)
 
+
+def get_remaining_files(all_files: List[str]) -> Set[str]:
+    already_processed_path = files("IngestFunction") / "already_processed.txt"
+    already_processed = already_processed_path.read_text().split(",")
+    # These all begin with the prefix "220128"
+    already_processed = [entry[6:] for entry in already_processed]
+    target_files = set(all_files) - set(already_processed)
+    logger.info(
+        f"All files length: {len(all_files)},already_processed length: {len(already_processed)}, target_file length: {len(target_files)}. Sample entries. All_files: {all_files[0]}, already_processed: {already_processed[0]}"
+    )
+    return target_files
+
+
+def get_minimal_subset() -> List[str]:
+    return [
+        "zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml",
+        "zip_1_2_840_114350_1_13_198_2_7_8_688883_160962206_20211223222659.xml",
+        "zip_1_2_840_114350_1_13_198_2_7_8_688883_160974837_20211224024414.xml",
+        "zip_1_2_840_114350_1_13_198_2_7_8_688883_160974869_20211224024410.xml",
+        "zip_1_2_840_114350_1_13_198_2_7_8_688883_160974870_20211224024410.xml",
+        "zip_1_2_840_114350_1_13_198_2_7_8_688883_160974871_20211224024411.xml",
+        "zip_1_2_840_114350_1_13_198_2_7_8_688883_160974872_20211224024412.xml",
+        "zip_1_2_840_114350_1_13_198_2_7_8_688883_160974876_20211224024516.xml",
+        "zip_1_2_840_114350_1_13_198_2_7_8_688883_160975428_20211224025211.xml",
+        "zip_1_2_840_114350_1_13_198_2_7_8_688883_160976351_20211224030310.xml",
+    ]
+
+
 async def use_asyncio(settings):
-    
+
     async with asyncssh.connect(
-                settings.hostname, 
-                username=settings.username, 
-                password=settings.password,
-                known_hosts=None,
-                client_keys=None,
-                server_host_key_algs="ssh-dss") as conn:
+        settings.hostname,
+        username=settings.username,
+        password=settings.password,
+        known_hosts=None,
+        client_keys=None,
+        server_host_key_algs="ssh-dss",
+    ) as conn:
         async with conn.start_sftp_client() as sftp:
-            logger.info('connected to SFTP server')
-            all_files = await sftp.glob("/eICR/*")
-            
-            already_processed_path = files('IngestFunction') / 'already_processed.txt'
-            
-            with open(already_processed_path, 'r') as f:
-                already_processed = f.read().split(",")
-                already_processed = [entry[6:] for entry in already_processed]
-            target_files = set(all_files) - set(already_processed)
+            logger.info("connected to SFTP server")
 
-            logger.info(f"All files length: {len(all_files)},already_processed length: {len(already_processed)}, target_file length: {len(target_files)}. Sample entries. All_files: {all_files[0]}, already_processed: {already_processed[0]}")
-            logger.info(f"Total file Count: {len(target_files)}")
+            all_files = await sftp.listdir("/")
+            logger.info(f"All files: {all_files}")
 
-            # target_files = all_files
-            # target_files = all_files[0:200]
-            # target_files = ['zip_1_2_840_114350_1_13_198_2_7_8_688883_160962026_20211223222531.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160962206_20211223222659.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974837_20211224024414.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974869_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974870_20211224024410.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974871_20211224024411.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974872_20211224024412.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160974876_20211224024516.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160975428_20211224025211.xml', 'zip_1_2_840_114350_1_13_198_2_7_8_688883_160976351_20211224030310.xml']
-            tasks = (handle_file_async(sftp, file_path) for file_path in target_files)
+            elr_files = await sftp.glob("/ELR/*")
+            vxu_files = await sftp.glob("/VXU/*")
+            logger.info(f"ELR count: {len(elr_files)}, VXU count: {len(vxu_files)}")
+
+            logger.info("Copying ELR files...")
+            tasks = (
+                handle_file_async(sftp, file_path, "220201", settings)
+                for file_path in elr_files
+            )
             await asyncio.gather(*tasks)
+
+            logger.info("Copying VXU files...")
+            tasks = (
+                handle_file_async(sftp, file_path, "220201", settings)
+                for file_path in vxu_files
+            )
+            await asyncio.gather(*tasks)
+
+            logger.info("Copying files completed.")
+
+
+def run_asyncio_process(
+    settings: IngestSettings, async_func: Callable[[IngestSettings], Awaitable]
+) -> func.HttpResponse:
+    try:
+        asyncio.run(async_func(settings))
+        return func.HttpResponse(f"Function Success!", status_code=200)
+    except:
+        tb = {traceback.format_exc()}
+        logger.error(f"Exception! Traceback: {tb}")
+        return func.HttpResponse(f"Error in response: {tb}", status_code=500)
 
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logger.info("Python HTTP trigger function processed a request.")
-    logger.info(f"Settings: {settings}")
     logger.info(f"Running Python version {platform.python_version()}")
 
-    try:
-        #3.7
-        # try:
-        #     asyncio.run(use_asyncio(settings))
-        # except Exception as e:
-        #     logging.error(f"Error: {e}")
+    settings = IngestSettings()
+    logger.info(f"Settings: {settings}")
 
-        #3.6
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(use_asyncio(settings))
-        return func.HttpResponse(f"This HTTP triggered function executed successfully.")
-    except:
-        tb = traceback.format_exc()
-        logger.error(f"Exception! Traceback: {tb}")
-        return func.HttpResponse(f"Error in response: {tb}", status_code=500)
+    return run_asyncio_process(settings, use_asyncio)
