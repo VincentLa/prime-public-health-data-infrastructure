@@ -1,0 +1,12 @@
+{
+    "name": "PractitionerIdentifier",
+    "resourceType": "Practitioner",
+    "unrollPath": "Practitioner.identifier",
+    "properties": [
+        {
+            "name": "Identifier",
+            "path": "",
+            "propertiesGroupRef": "Identifier"
+        }
+    ]
+}

@@ -1,0 +1,20 @@
+{
+    "propertiesGroupName": "Coding",
+    "properties": [
+        {
+            "path": "system",
+            "name": "System",
+            "type": "uri"
+        },
+        {
+            "path": "code",
+            "name": "Code",
+            "type": "code"
+        },
+        {
+            "path": "display",
+            "name": "Display",
+            "type": "string"
+        }
+    ]
+}

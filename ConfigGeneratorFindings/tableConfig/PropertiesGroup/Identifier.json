@@ -1,0 +1,30 @@
+{
+    "propertiesGroupName": "Identifier",
+    "properties": [
+        {
+            "path": "use",
+            "name": "Use",
+            "type": "code"
+        },
+        {
+            "path": "type",
+            "name": "Type",
+            "propertiesGroupRef": "CodeableConcept"
+        },
+        {
+            "path": "system",
+            "name": "System",
+            "type": "uri"
+        },
+        {
+            "path": "value",
+            "name": "Value",
+            "type": "string"
+        },
+        {
+            "path": "assigner",
+            "name": "Assigner",
+            "propertiesGroupRef": "Reference"
+        }
+    ]
+}

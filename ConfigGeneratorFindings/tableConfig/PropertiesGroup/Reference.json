@@ -1,0 +1,15 @@
+{
+    "propertiesGroupName": "Reference",
+    "properties": [
+        {
+            "path": "reference",
+            "name": "Reference",
+            "type": "string"
+        },
+        {
+            "path": "type",
+            "name": "Type",
+            "type": "uri"
+        }
+    ]
+}

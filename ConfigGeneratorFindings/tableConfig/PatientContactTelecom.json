@@ -1,0 +1,12 @@
+{
+    "name": "PatientContactTelecom",
+    "resourceType": "Patient",
+    "unrollPath": "Patient.contact.telecom",
+    "properties": [
+        {
+            "name": "Telecom",
+            "path": "",
+            "propertiesGroupRef": "ContactPoint"
+        }
+    ]
+}
