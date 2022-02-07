@@ -1,0 +1,12 @@
+{
+    "name": "PractitionerQualification",
+    "resourceType": "Practitioner",
+    "unrollPath": "Practitioner.qualification",
+    "properties": [
+        {
+            "name": "Qualification",
+            "path": "",
+            "propertiesGroupRef": "Practitioner_Qualification"
+        }
+    ]
+}

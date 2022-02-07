@@ -1,0 +1,15 @@
+{
+    "propertiesGroupName": "Patient_Link",
+    "properties": [
+        {
+            "path": "other",
+            "name": "Other",
+            "propertiesGroupRef": "Reference"
+        },
+        {
+            "path": "type",
+            "name": "Type",
+            "type": "code"
+        }
+    ]
+}

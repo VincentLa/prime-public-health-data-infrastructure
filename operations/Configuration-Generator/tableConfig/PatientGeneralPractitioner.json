@@ -1,0 +1,12 @@
+{
+    "name": "PatientGeneralPractitioner",
+    "resourceType": "Patient",
+    "unrollPath": "Patient.generalPractitioner",
+    "properties": [
+        {
+            "name": "GeneralPractitioner",
+            "path": "",
+            "propertiesGroupRef": "Reference"
+        }
+    ]
+}

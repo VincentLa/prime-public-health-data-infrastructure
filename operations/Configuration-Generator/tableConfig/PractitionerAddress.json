@@ -1,0 +1,12 @@
+{
+    "name": "PractitionerAddress",
+    "resourceType": "Practitioner",
+    "unrollPath": "Practitioner.address",
+    "properties": [
+        {
+            "name": "Address",
+            "path": "",
+            "propertiesGroupRef": "Address"
+        }
+    ]
+}

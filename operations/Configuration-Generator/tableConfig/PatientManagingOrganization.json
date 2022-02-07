@@ -1,0 +1,12 @@
+{
+    "name": "PatientManagingOrganization",
+    "resourceType": "Patient",
+    "unrollPath": "Patient.managingOrganization",
+    "properties": [
+        {
+            "name": "ManagingOrganization",
+            "path": "",
+            "propertiesGroupRef": "Reference"
+        }
+    ]
+}

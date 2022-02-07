@@ -1,0 +1,15 @@
+{
+    "propertiesGroupName": "CodeableConcept",
+    "properties": [
+        {
+            "path": "coding",
+            "name": "Coding",
+            "propertiesGroupRef": "Coding"
+        },
+        {
+            "path": "text",
+            "name": "Text",
+            "type": "string"
+        }
+    ]
+}

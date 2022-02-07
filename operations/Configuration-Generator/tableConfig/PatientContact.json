@@ -1,0 +1,12 @@
+{
+    "name": "PatientContact",
+    "resourceType": "Patient",
+    "unrollPath": "Patient.contact",
+    "properties": [
+        {
+            "name": "Contact",
+            "path": "",
+            "propertiesGroupRef": "Patient_Contact"
+        }
+    ]
+}
